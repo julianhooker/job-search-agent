@@ -1,0 +1,4 @@
+companies:
+  - name: GitLab
+    platform: greenhouse
+    url: https://boards.greenhouse.io/gitlab
