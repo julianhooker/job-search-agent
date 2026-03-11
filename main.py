@@ -4,6 +4,7 @@ from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
 from src.reporting.json_export import export_jobs_json
 from src.filters.prefilter import prefilter_jobs
+from src.filters.detail_filter import detail_filter_jobs
 
 
 def main():
@@ -30,11 +31,23 @@ def main():
     review_jobs = kept_jobs + maybe_jobs
     enriched_review_jobs = enrich_jobs_with_details(review_jobs)
 
+    detail_keep, detail_maybe, detail_reject = detail_filter_jobs(enriched_review_jobs)
+
+    print(f"Kept {len(detail_keep)} jobs after detail filter")
+    print(f"Maybe {len(detail_maybe)} jobs after detail filter")
+    print(f"Rejected {len(detail_reject)} jobs after detail filter")
+
     export_jobs_csv(kept_jobs, "reports/jobs_keep.csv")
     export_jobs_csv(maybe_jobs, "reports/jobs_maybe.csv")
     export_jobs_csv(rejected_jobs, "reports/jobs_rejected.csv")
 
     export_jobs_json(enriched_review_jobs, "reports/jobs_review.json")
+
+    export_jobs_csv(detail_keep, "reports/jobs_detail_keep.csv")
+    export_jobs_csv(detail_maybe, "reports/jobs_detail_maybe.csv")
+    export_jobs_csv(detail_reject, "reports/jobs_detail_reject.csv")
+
+    export_jobs_json(detail_keep + detail_maybe + detail_reject, "reports/jobs_detail_review.json")
 
 
 if __name__ == "__main__":

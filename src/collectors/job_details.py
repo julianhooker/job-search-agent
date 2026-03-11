@@ -97,21 +97,36 @@ def extract_job_detail_fields(html):
 
     # Employment type extraction - only from early content
     employment_type = ""
-    for line in trimmed_lines[:40]:
-        line_lower = line.lower()
 
+    for line in trimmed_lines[:40]:
+        line_lower = line.lower().strip()
+
+        # Skip known misleading phrases
         if "federal contractor" in line_lower or "government contractor" in line_lower:
             continue
 
-        if "full-time" in line_lower or "full time" in line_lower:
+        # Only accept very explicit employment-type lines
+        if line_lower in {"full-time", "full time"}:
             employment_type = "Full-time"
             break
-        if re.search(r"\bcontract\b", line_lower) or re.search(r"\bcontractor\b", line_lower):
+        if line_lower in {"contract", "contractor"}:
             employment_type = "Contract"
             break
-        if "temporary" in line_lower or re.search(r"\btemp\b", line_lower):
+        if line_lower in {"temporary", "temp"}:
             employment_type = "Temporary"
             break
+
+        # Also allow explicit labels like "employment type: full-time"
+        if line_lower.startswith("employment type:"):
+            if "full-time" in line_lower or "full time" in line_lower:
+                employment_type = "Full-time"
+                break
+            if "contract" in line_lower or "contractor" in line_lower:
+                employment_type = "Contract"
+                break
+            if "temporary" in line_lower or "temp" in line_lower:
+                employment_type = "Temporary"
+                break
 
     # Structured flags
     mentions_after_hours = "after hours" in lowered
