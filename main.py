@@ -3,8 +3,10 @@ from src.collectors.job_details import enrich_jobs_with_details
 from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
 from src.reporting.json_export import export_jobs_json
+from src.reporting.prompt_export import export_evaluation_prompts
 from src.filters.prefilter import prefilter_jobs
 from src.filters.detail_filter import detail_filter_jobs
+from src.evaluators.job_evaluator import build_evaluation_prompt
 
 
 def main():
@@ -46,8 +48,14 @@ def main():
     export_jobs_csv(detail_keep, "reports/jobs_detail_keep.csv")
     export_jobs_csv(detail_maybe, "reports/jobs_detail_maybe.csv")
     export_jobs_csv(detail_reject, "reports/jobs_detail_reject.csv")
-
     export_jobs_json(detail_keep + detail_maybe + detail_reject, "reports/jobs_detail_review.json")
+
+    evaluator_jobs = detail_keep + detail_maybe
+    export_evaluation_prompts(
+        evaluator_jobs,
+        build_evaluation_prompt,
+        "reports/evaluation_prompts.md",
+    )
 
 
 if __name__ == "__main__":
