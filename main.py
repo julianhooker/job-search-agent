@@ -18,14 +18,16 @@ def main():
 
             all_jobs.extend(jobs)
 
-    kept_jobs, rejected_jobs = prefilter_jobs(all_jobs)
+    kept_jobs, maybe_jobs, rejected_jobs = prefilter_jobs(all_jobs)
 
     print(f"Collected {len(all_jobs)} total jobs")
     print(f"Kept {len(kept_jobs)} jobs after prefilter")
+    print(f"Maybe {len(maybe_jobs)} jobs after prefilter")
     print(f"Rejected {len(rejected_jobs)} jobs after prefilter")
 
-    export_jobs_csv(kept_jobs, "reports/jobs.csv")
-    export_jobs_csv(rejected_jobs, "reports/rejected_jobs.csv")
+    export_jobs_csv(kept_jobs, "reports/jobs_keep.csv")
+    export_jobs_csv(maybe_jobs, "reports/jobs_maybe.csv")
+    export_jobs_csv(rejected_jobs, "reports/jobs_rejected.csv")
 
 
 if __name__ == "__main__":
