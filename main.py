@@ -7,6 +7,7 @@ from src.reporting.prompt_export import export_evaluation_prompts
 from src.filters.prefilter import prefilter_jobs
 from src.filters.detail_filter import detail_filter_jobs
 from src.evaluators.job_evaluator import build_evaluation_prompt
+from src.reporting.daily_report import build_daily_report
 
 
 def main():
@@ -57,6 +58,9 @@ def main():
         "reports/evaluation_prompts.md",
     )
 
+    daily_candidates = detail_keep + detail_maybe
+
+    build_daily_report(daily_candidates)
 
 if __name__ == "__main__":
     main()

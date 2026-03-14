@@ -26,22 +26,38 @@ REJECT_TITLE_PATTERNS = [
     "hr ",
     "human resources",
     "people partner",
+    "people operations",
+    "people compliance",
     "payroll",
     "billing operations analyst",
     "professional services",
     "forward deploy",
     "engagement manager",
     "customer success engineer",
+    "audit manager",
+    "it audit",
+    "compliance partner",
+    "regional manager, growth",
 ]
 
 KEEP_TITLE_PATTERNS = [
-    "architect",
     "enterprise architect",
     "solutions architect",
+    "technical architect",
+    "architecture",
+    "platform architect",
+    "integration architect",
+    "identity architect",
+    "security architect",
+    "architect",
+]
+
+MAYBE_TITLE_PATTERNS = [
     "staff engineer",
     "principal engineer",
     "engineering manager",
     "director of engineering",
+    "software engineer",
     "backend",
     "platform",
     "infrastructure",
@@ -54,11 +70,6 @@ KEEP_TITLE_PATTERNS = [
     "database engineer",
     "data engineer",
     "enterprise systems",
-    "software engineer",
-    "technical architect",
-]
-
-MAYBE_TITLE_PATTERNS = [
     "manager",
     "director",
     "analyst",
@@ -70,7 +81,6 @@ MAYBE_TITLE_PATTERNS = [
     "program manager",
     "product manager",
 ]
-
 
 def classify_title(title_text):
     text = normalize_text(title_text)
