@@ -8,6 +8,7 @@ from src.filters.prefilter import prefilter_jobs
 from src.filters.detail_filter import detail_filter_jobs
 from src.evaluators.job_evaluator import build_evaluation_prompt
 from src.reporting.daily_report import build_daily_report
+from src.utils.id_helpers import require_job_ids
 
 
 def main():
@@ -17,14 +18,22 @@ def main():
     for company in companies:
         if company["platform"] == "greenhouse":
             print(f"Collecting jobs from {company['name']}")
-            jobs = collect_greenhouse_jobs(company["url"])
+            jobs = collect_greenhouse_jobs(company["url"], company_name=company.get("name"))
 
+            # ensure identity fields are present for all collected jobs
+            require_job_ids(jobs, stage_name="collection")
+
+            # company name is provided by collector but ensure consistency
             for job in jobs:
-                job["company"] = company["name"]
+                if not job.get("company"):
+                    job["company"] = company["name"]
 
             all_jobs.extend(jobs)
 
     kept_jobs, maybe_jobs, rejected_jobs = prefilter_jobs(all_jobs)
+
+    # Validate identity fields after prefiltering (on the source list)
+    require_job_ids(all_jobs, stage_name="after_prefilter")
 
     print(f"Collected {len(all_jobs)} total jobs")
     print(f"Kept {len(kept_jobs)} jobs after prefilter")
@@ -34,7 +43,13 @@ def main():
     review_jobs = kept_jobs + maybe_jobs
     enriched_review_jobs = enrich_jobs_with_details(review_jobs)
 
+    # Validate identity fields after enrichment
+    require_job_ids(enriched_review_jobs, stage_name="after_enrichment")
+
     detail_keep, detail_maybe, detail_reject = detail_filter_jobs(enriched_review_jobs)
+
+    # Validate identity fields after detail filtering
+    require_job_ids(detail_keep + detail_maybe + detail_reject, stage_name="after_detail_filter")
 
     print(f"Kept {len(detail_keep)} jobs after detail filter")
     print(f"Maybe {len(detail_maybe)} jobs after detail filter")
@@ -52,6 +67,9 @@ def main():
     export_jobs_json(detail_keep + detail_maybe + detail_reject, "reports/jobs_detail_review.json")
 
     evaluator_jobs = detail_keep + detail_maybe
+
+    # Final check before generating evaluation prompts
+    require_job_ids(evaluator_jobs, stage_name="before_prompt_export")
     export_evaluation_prompts(
         evaluator_jobs,
         build_evaluation_prompt,

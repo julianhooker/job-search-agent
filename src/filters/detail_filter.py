@@ -69,11 +69,28 @@ def classify_role_fit(job):
     title = normalize_text(job.get("title", ""))
     description = normalize_text(job.get("description_text", ""))
     combined = f"{title}\n{description[:5000]}"
+    implementation_heavy_title_patterns = [
+        "backend engineer",
+        "software engineer",
+        "frontend engineer",
+        "full stack",
+    ]
+    architecture_or_platform_title_patterns = [
+        "architecture",
+        "architect",
+        "platform",
+    ]
 
     if contains_any(combined, REJECT_ROLE_PATTERNS):
         return "reject", ["Role family appears outside target area"]
 
     if contains_any(combined, KEEP_ROLE_PATTERNS):
+        if contains_any(title, implementation_heavy_title_patterns):
+            return "maybe", ["Implementation-heavy engineering title"]
+
+        if "engineering manager" in title and not contains_any(title, architecture_or_platform_title_patterns):
+            return "maybe", ["Engineering manager title is not clearly architecture/platform-oriented"]
+
         if contains_any(combined, CAUTION_ROLE_PATTERNS):
             return "maybe", ["Role is relevant but has cautionary signals"]
         return "keep", []

@@ -49,8 +49,9 @@ Roles are less attractive when they are:
 EVALUATION_INSTRUCTIONS = """
 Evaluate this job for this candidate.
 
-Return JSON only with this schema:
+Return JSON only with this exact schema:
 {
+  "job_id": "<exact job_id from the job data>",
   "final_recommendation": "pursue" | "practice" | "pass",
   "fit_score": integer from 1 to 10,
   "ai_durability": "low" | "medium" | "high",
@@ -59,6 +60,11 @@ Return JSON only with this schema:
   "key_concerns": ["...", "..."],
   "reasoning": "..."
 }
+
+Rules:
+- The returned "job_id" must exactly match the job_id provided in the job data.
+- Return JSON only, with no markdown fences and no extra commentary.
+- Do not omit job_id.
 
 Interpretation:
 - pursue = a real candidate match worth serious consideration
@@ -84,7 +90,14 @@ def build_job_payload(job):
     """
     Keep the payload focused so prompts don't become unnecessarily huge.
     """
+    job_id = job.get("job_id")
+    if not job_id:
+        raise ValueError(
+            f"Missing job_id for job title={job.get('title')!r}, company={job.get('company')!r}"
+        )
+
     return {
+        "job_id": job_id,
         "title": job.get("title", ""),
         "company": job.get("company", ""),
         "location": job.get("location", ""),
