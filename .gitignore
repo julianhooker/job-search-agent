@@ -1,7 +1,22 @@
-__pycache__/
 *.pyc
 .env
 jobs.db
 data/
 reports/
+
+# Virtual env
+.venv/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# VS Code
 .vscode/
+
+# Env files / OS
+.env
+.env.*
+.DS_Store
