@@ -20,6 +20,7 @@
 - `reports/evaluation_prompts.md` generation
 - Manual evaluation step
   - LLM outputs are copied into `reports/evaluator_results.json`
+  - `reports/evaluation_queue.json` tracks which jobs are pending, already evaluated, merged, or skipped
 - Evaluator results ingestion
   - Merges evaluator output by `job_id`
 - Scoring and ranking
@@ -51,6 +52,10 @@
   - Backward-compatible alias accepted during ingestion:
     - `recommendation` -> `final_recommendation`
   - If duplicate `job_id` entries appear, the pipeline warns and keeps the last one
+- `reports/evaluation_queue.json`
+  - Generated manual work queue keyed by `job_id`
+  - Status values: `pending`, `evaluated`, `merged`, `skipped`
+  - Used to avoid re-presenting already evaluated jobs in `reports/evaluation_prompts.md` unless forced
 - `reports/evaluator_results_merged.json`
   - Contains merged job data, evaluator output, and computed recommendation score
 
@@ -93,6 +98,10 @@
 - Use ChatGPT for system design and reasoning
 - Use Codex for modifying code in the repo
 - Manual evaluation step is currently used instead of live LLM API calls
+- Run the pipeline to refresh `reports/evaluation_queue.json`
+- Review `reports/evaluation_prompts.md` for `pending` jobs only
+- Set `FORCE_EVALUATION_PROMPTS=1` to regenerate prompts for all currently eligible jobs
+- Use `python3 -m src.reporting.evaluation_queue` to print queue summary counts
 
 ## Next Planned Improvements
 

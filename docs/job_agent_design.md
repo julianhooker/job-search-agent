@@ -86,6 +86,20 @@ Backward compatibility:
 - CSV exports for downstream analysis (`reports/*.csv`).
 - JSON exports containing full structured metadata and evaluation traces.
 
+### Manual Evaluation Queue
+
+The pipeline generates `reports/evaluation_queue.json` as a lightweight manual work queue for evaluator review.
+
+- Linkage is by stable `job_id`
+- Status values are:
+  - `pending`: eligible for manual LLM evaluation and not yet present in evaluator outputs
+  - `evaluated`: present in `reports/evaluator_results.json` but not yet merged into the latest final report output
+  - `merged`: already present in `reports/evaluator_results_merged.json`
+  - `skipped`: not sent for manual evaluation, typically because the job was rejected by the detail filter
+- `reports/evaluation_prompts.md` is generated from `pending` jobs only by default
+- Setting `FORCE_EVALUATION_PROMPTS=1` causes prompts to be regenerated for all currently eligible jobs
+- `python3 -m src.reporting.evaluation_queue` prints summary counts for the queue
+
 ### Final Recommendation Scoring
 
 The final report pipeline in `src/reporting/final_report.py` computes a `recommendation_score` for each merged evaluator result before generating `reports/final_recommendations.md` and `reports/evaluator_results_merged.json`.

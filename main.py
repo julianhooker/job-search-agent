@@ -1,9 +1,18 @@
+import os
+
 from src.collectors.greenhouse import collect_greenhouse_jobs
 from src.collectors.job_details import enrich_jobs_with_details
 from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
 from src.reporting.json_export import export_jobs_json
 from src.reporting.prompt_export import export_evaluation_prompts
+from src.reporting.evaluation_queue import (
+    build_evaluation_queue,
+    load_json_file as load_queue_input_json,
+    pending_jobs_from_queue,
+    print_queue_summary,
+    write_evaluation_queue,
+)
 from src.reporting.final_report import run_final_report
 from src.filters.prefilter import prefilter_jobs
 from src.filters.detail_filter import detail_filter_jobs
@@ -68,11 +77,30 @@ def main():
     export_jobs_json(detail_keep + detail_maybe + detail_reject, "reports/jobs_detail_review.json")
 
     evaluator_jobs = detail_keep + detail_maybe
+    evaluator_jobs_by_id = {job["job_id"]: job for job in evaluator_jobs}
 
     # Final check before generating evaluation prompts
     require_job_ids(evaluator_jobs, stage_name="before_prompt_export")
+
+    existing_eval_results = load_queue_input_json("reports/evaluator_results.json")
+    existing_merged_results = load_queue_input_json("reports/evaluator_results_merged.json")
+    evaluation_queue = build_evaluation_queue(
+        candidate_jobs=evaluator_jobs,
+        skipped_jobs=detail_reject,
+        eval_results=existing_eval_results,
+        merged_results=existing_merged_results,
+    )
+    write_evaluation_queue(evaluation_queue, "reports/evaluation_queue.json")
+    print_queue_summary(evaluation_queue)
+
+    force_evaluation_prompts = os.getenv("FORCE_EVALUATION_PROMPTS", "").strip().lower() in {"1", "true", "yes"}
+    prompt_jobs = pending_jobs_from_queue(
+        evaluation_queue,
+        evaluator_jobs_by_id,
+        force=force_evaluation_prompts,
+    )
     export_evaluation_prompts(
-        evaluator_jobs,
+        prompt_jobs,
         build_evaluation_prompt,
         "reports/evaluation_prompts.md",
     )
