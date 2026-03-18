@@ -184,6 +184,7 @@ def run_final_report():
     lines.append(f"- Pursue: {counts.get('pursue', 0)} (top score: {top_text('pursue')})")
     lines.append(f"- Practice: {counts.get('practice', 0)} (top score: {top_text('practice')})")
     lines.append(f"- Pass: {counts.get('pass', 0)} (top score: {top_text('pass')})")
+    lines.append("- Scoring model: weighted fit + confidence + AI durability + keyword bonuses/penalties")
     lines.append("")
 
     # Debug line for top pursue score
@@ -211,6 +212,7 @@ def run_final_report():
         lines.append("")
 
         for item in sections[section]:
+            jid = item.get("job_id", "unknown-job-id")
             title = item.get("title", "Untitled")
             company = item.get("company", "Unknown")
             url = item.get("url", "")
@@ -222,6 +224,11 @@ def run_final_report():
             concerns = item.get("key_concerns") or []
             reasoning = item.get("reasoning") or ""
             score = item.get("recommendation_score", "")
+
+            if not item.get("title"):
+                print(f"Warning: merged item missing title for job_id {jid}")
+            if not item.get("url"):
+                print(f"Warning: merged item missing url for job_id {jid}")
 
             lines.append(f"### {title} — {company}")
             lines.append("")
