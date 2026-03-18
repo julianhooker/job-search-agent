@@ -4,6 +4,7 @@ from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
 from src.reporting.json_export import export_jobs_json
 from src.reporting.prompt_export import export_evaluation_prompts
+from src.reporting.final_report import run_final_report
 from src.filters.prefilter import prefilter_jobs
 from src.filters.detail_filter import detail_filter_jobs
 from src.evaluators.job_evaluator import build_evaluation_prompt
@@ -75,6 +76,13 @@ def main():
         build_evaluation_prompt,
         "reports/evaluation_prompts.md",
     )
+
+    # Run the evaluator results ingestion & final report generation
+    try:
+        run_final_report()
+    except Exception as e:
+        print(f"Final report generation failed: {e}")
+        raise
 
     daily_candidates = detail_keep + detail_maybe
 

@@ -55,6 +55,53 @@ Components:
 - CSV exports for downstream analysis (`reports/*.csv`).
 - JSON exports containing full structured metadata and evaluation traces.
 
+### Final Recommendation Scoring
+
+The final report pipeline in `src/reporting/final_report.py` computes a `recommendation_score` for each merged evaluator result before generating `reports/final_recommendations.md` and `reports/evaluator_results_merged.json`.
+
+Current scoring formula:
+
+```text
+score =
+  (fit_score * 12)
+  + confidence_bonus
+  + ai_durability_bonus
+  + recommendation_bonus
+  - concern_keyword_penalty
+  + strength_keyword_bonus
+  - generic_concern_count_penalty
+  + generic_strength_count_bonus
+
+final_score = clamp(score, 0, 100)
+```
+
+Base bonuses:
+
+- `confidence`: `high = +8`, `medium = +4`, `low = +0`
+- `ai_durability`: `high = +6`, `medium = +3`, `low = +0`
+- `final_recommendation`: `pursue = +20`, `practice = +8`, `pass = -8`
+
+Concern keyword penalties are matched case-insensitively across the joined `key_concerns` text:
+
+- `-12` for executive overscope patterns such as `large org leadership`, `executive scope`, `vp scope`, `organization too large`
+- `-8` for implementation-heavy product engineering patterns such as `implementation-heavy`, `hands-on product engineering`, `feature delivery`, `coding-heavy`
+- `-8` for operational burden patterns such as `on-call`, `operational burden`, `incident response`, `reliability pressure`, `production ownership`
+- `-6` for compensation risk patterns such as `salary below target`, `below $135k`, `below 135k`, `compensation risk`
+- `-6` for travel or customer-delivery patterns such as `travel`, `customer-facing`, `consulting-heavy`, `sales-adjacent`
+
+Strength keyword bonuses are matched case-insensitively across the joined `key_strengths` text:
+
+- `+8` for architecture/platform/strategy patterns such as `architecture`, `platform`, `systems strategy`, `technical direction`
+- `+6` for integration/security-adjacent patterns such as `integration`, `enterprise systems`, `iam`, `authentication`, `authorization`, `security-adjacent`
+- `+4` for leadership/communication patterns such as `leadership`, `cross-team alignment`, `explaining technical tradeoffs`
+
+Small generic adjustments are intentionally capped so they do not overpower the semantic signals:
+
+- generic concern count penalty: `min(2 * concern_count, 6)`
+- generic strength count bonus: `min(strength_count, 3)`
+
+This scoring design is intended to create more separation between true architecture/platform matches and weaker or more operational/product-engineering fits, while keeping the manual testing workflow unchanged.
+
 ## Testing & Validation
 
 - Unit tests for parsers and evaluators using saved sample pages in `data/job_pages/`.
