@@ -44,6 +44,37 @@ Components:
 - Explainability: keep evidence for each decision (matching keywords, missing requirements).
 - Extensible: new evaluators implement a simple interface (input: job dict, output: score+rationale).
 
+### Evaluator Output Contract
+
+The manual evaluator workflow writes `reports/evaluator_results.json` as a JSON array of flat evaluator result objects keyed by `job_id`.
+
+Canonical required fields:
+
+- `job_id`: stable link back to the source job, using `source:company_slug:external_job_id`
+- `final_recommendation`: `pursue` | `practice` | `pass`
+- `fit_score`: integer `1-10`
+- `confidence`: `low` | `medium` | `high`
+- `ai_durability`: `low` | `medium` | `high`
+
+Common optional fields:
+
+- `key_strengths`: list of strings
+- `key_concerns`: list of strings
+- `reasoning`: string
+- `remote_assessment`: `aligned` | `ambiguous` | `misaligned` | `unknown`
+- `travel_assessment`: `low` | `moderate` | `high` | `unknown`
+- `salary_assessment`: `meets_target` | `below_target` | `mixed` | `unknown`
+- `evaluator_pass`: short label for multi-pass evaluation workflows
+- `evaluation_id`: unique identifier for a single evaluation pass
+- `evaluated_at`: timestamp string
+- `evaluator_model`: model or tool label
+
+Backward compatibility:
+
+- The ingestion layer accepts `recommendation` as an alias for `final_recommendation`.
+- If duplicate evaluator entries share the same `job_id`, the report pipeline warns and keeps the last occurrence.
+- Unknown optional fields are preserved when merging evaluator results into `reports/evaluator_results_merged.json`.
+
 ## Storage and Persistence
 
 - Keep raw HTML (or API response) alongside extracted records for auditability.

@@ -30,8 +30,27 @@
 - `job_id`
   - Format: `source:company_slug:external_job_id`
 - `reports/evaluator_results.json`
-  - List of evaluation result objects
-  - Each object includes `job_id`, recommendation, `fit_score`, confidence, AI durability, strengths, concerns, and reasoning
+  - List of evaluator result objects
+  - Canonical required fields:
+    - `job_id`
+    - `final_recommendation`
+    - `fit_score`
+    - `confidence`
+    - `ai_durability`
+  - Common optional fields:
+    - `key_strengths`
+    - `key_concerns`
+    - `reasoning`
+    - `remote_assessment`
+    - `travel_assessment`
+    - `salary_assessment`
+    - `evaluator_pass`
+    - `evaluation_id`
+    - `evaluated_at`
+    - `evaluator_model`
+  - Backward-compatible alias accepted during ingestion:
+    - `recommendation` -> `final_recommendation`
+  - If duplicate `job_id` entries appear, the pipeline warns and keeps the last one
 - `reports/evaluator_results_merged.json`
   - Contains merged job data, evaluator output, and computed recommendation score
 

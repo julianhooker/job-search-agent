@@ -2,6 +2,13 @@ import json
 from pathlib import Path
 
 
+RECOMMENDATION_VALUES = {"pursue", "practice", "pass"}
+LEVEL_VALUES = {"low", "medium", "high"}
+REMOTE_ASSESSMENT_VALUES = {"aligned", "ambiguous", "misaligned", "unknown"}
+TRAVEL_ASSESSMENT_VALUES = {"low", "moderate", "high", "unknown"}
+SALARY_ASSESSMENT_VALUES = {"meets_target", "below_target", "mixed", "unknown"}
+
+
 def load_json_file(path):
     p = Path(path)
     if not p.exists():
@@ -55,6 +62,126 @@ def strength_keyword_bonus(strengths):
             bonus += amount
 
     return bonus
+
+
+def normalize_string_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def normalize_optional_enum(value, allowed_values, default="unknown"):
+    normalized = (value or "").strip().lower()
+    if not normalized:
+        return default
+    if normalized not in allowed_values:
+        raise ValueError(f"Invalid value {value!r}; expected one of {sorted(allowed_values)}")
+    return normalized
+
+
+def normalize_evaluator_result(raw_result, index):
+    if not isinstance(raw_result, dict):
+        raise ValueError(f"Evaluator result at index {index} must be an object")
+
+    result = dict(raw_result)
+
+    # Backward-compatible alias support for manual copy/paste workflows.
+    if "final_recommendation" not in result and "recommendation" in result:
+        result["final_recommendation"] = result.get("recommendation")
+
+    job_id = str(result.get("job_id") or "").strip()
+    if not job_id:
+        raise ValueError(f"Evaluator result at index {index} is missing required field 'job_id'")
+
+    recommendation = str(result.get("final_recommendation") or "").strip().lower()
+    if recommendation not in RECOMMENDATION_VALUES:
+        raise ValueError(
+            f"Evaluator result for job_id {job_id} has invalid final_recommendation "
+            f"{result.get('final_recommendation')!r}"
+        )
+
+    try:
+        fit_score = int(result.get("fit_score"))
+    except Exception:
+        raise ValueError(f"Evaluator result for job_id {job_id} is missing or has invalid 'fit_score'")
+    if fit_score < 1 or fit_score > 10:
+        raise ValueError(f"Evaluator result for job_id {job_id} has fit_score outside 1-10: {fit_score}")
+
+    confidence = normalize_optional_enum(result.get("confidence"), LEVEL_VALUES, default="")
+    if not confidence:
+        raise ValueError(f"Evaluator result for job_id {job_id} is missing required field 'confidence'")
+
+    ai_durability = normalize_optional_enum(result.get("ai_durability"), LEVEL_VALUES, default="")
+    if not ai_durability:
+        raise ValueError(f"Evaluator result for job_id {job_id} is missing required field 'ai_durability'")
+
+    normalized = dict(result)
+    normalized["job_id"] = job_id
+    normalized["final_recommendation"] = recommendation
+    normalized["fit_score"] = fit_score
+    normalized["confidence"] = confidence
+    normalized["ai_durability"] = ai_durability
+    normalized["key_strengths"] = normalize_string_list(result.get("key_strengths"))
+    normalized["key_concerns"] = normalize_string_list(result.get("key_concerns"))
+    normalized["reasoning"] = str(result.get("reasoning") or "").strip()
+
+    # Optional structured assessments to make unknown/ambiguous states explicit.
+    if "remote_assessment" in result or "remote_status" in result:
+        normalized["remote_assessment"] = normalize_optional_enum(
+            result.get("remote_assessment", result.get("remote_status")),
+            REMOTE_ASSESSMENT_VALUES,
+        )
+    if "travel_assessment" in result:
+        normalized["travel_assessment"] = normalize_optional_enum(
+            result.get("travel_assessment"),
+            TRAVEL_ASSESSMENT_VALUES,
+        )
+    if "salary_assessment" in result:
+        normalized["salary_assessment"] = normalize_optional_enum(
+            result.get("salary_assessment"),
+            SALARY_ASSESSMENT_VALUES,
+        )
+
+    # Optional pass metadata for future multi-pass workflows.
+    if "evaluator_pass" in result and result.get("evaluator_pass") is not None:
+        normalized["evaluator_pass"] = str(result.get("evaluator_pass")).strip()
+    if "evaluation_id" in result and result.get("evaluation_id") is not None:
+        normalized["evaluation_id"] = str(result.get("evaluation_id")).strip()
+    if "evaluated_at" in result and result.get("evaluated_at") is not None:
+        normalized["evaluated_at"] = str(result.get("evaluated_at")).strip()
+    if "evaluator_model" in result and result.get("evaluator_model") is not None:
+        normalized["evaluator_model"] = str(result.get("evaluator_model")).strip()
+
+    return normalized
+
+
+def normalize_evaluator_results(eval_results):
+    if not isinstance(eval_results, list):
+        raise ValueError("Evaluator results must be a JSON array of objects")
+
+    normalized_results = []
+    seen_job_ids = {}
+
+    for index, raw_result in enumerate(eval_results, start=1):
+        normalized = normalize_evaluator_result(raw_result, index)
+        job_id = normalized["job_id"]
+        if job_id in seen_job_ids:
+            print(
+                f"Warning: duplicate evaluator result for job_id {job_id}; "
+                f"keeping the last occurrence (indices {seen_job_ids[job_id]} and {index})"
+            )
+        seen_job_ids[job_id] = index
+        normalized_results.append(normalized)
+
+    latest_by_job_id = {}
+    for normalized in normalized_results:
+        latest_by_job_id[normalized["job_id"]] = normalized
+
+    return list(latest_by_job_id.values())
 
 
 def run_final_report():
@@ -112,15 +239,7 @@ def run_final_report():
 
     print("Loading evaluator results from", eval_path)
     eval_results = load_json_file(eval_path)
-
-    # Validate evaluator results is an array
-    if not isinstance(eval_results, list):
-        raise ValueError("Evaluator results must be a JSON array of objects")
-
-    # Validate each evaluator result has a job_id
-    missing = [r for r in eval_results if not isinstance(r, dict) or not r.get("job_id")]
-    if missing:
-        raise ValueError(f"Found {len(missing)} evaluator result(s) missing 'job_id'")
+    eval_results = normalize_evaluator_results(eval_results)
 
     print(f"Loaded {len(eval_results)} evaluator results")
 

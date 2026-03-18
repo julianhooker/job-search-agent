@@ -49,7 +49,7 @@ Roles are less attractive when they are:
 EVALUATION_INSTRUCTIONS = """
 Evaluate this job for this candidate.
 
-Return JSON only with this exact schema:
+Return JSON only as a single object using this canonical schema:
 {
   "job_id": "<exact job_id from the job data>",
   "final_recommendation": "pursue" | "practice" | "pass",
@@ -58,13 +58,20 @@ Return JSON only with this exact schema:
   "confidence": "low" | "medium" | "high",
   "key_strengths": ["...", "..."],
   "key_concerns": ["...", "..."],
-  "reasoning": "..."
+  "reasoning": "...",
+  "remote_assessment": "aligned" | "ambiguous" | "misaligned" | "unknown",
+  "travel_assessment": "low" | "moderate" | "high" | "unknown",
+  "salary_assessment": "meets_target" | "below_target" | "mixed" | "unknown"
 }
 
 Rules:
 - The returned "job_id" must exactly match the job_id provided in the job data.
 - Return JSON only, with no markdown fences and no extra commentary.
 - Do not omit job_id.
+- Required fields: `job_id`, `final_recommendation`, `fit_score`, `ai_durability`, `confidence`.
+- `key_strengths`, `key_concerns`, and `reasoning` should be included whenever possible.
+- Include `remote_assessment`, `travel_assessment`, and `salary_assessment` when the job text makes those judgments possible.
+- Use `unknown` or `ambiguous` rather than guessing when salary, travel, or remote status is unclear.
 
 Interpretation:
 - pursue = a real candidate match worth serious consideration
