@@ -3,33 +3,41 @@
 ## Project Overview
 
 - This is a local AI-assisted job search pipeline written in Python.
-- It collects jobs, filters them, evaluates them, and produces a ranked report.
+- It collects jobs, filters them, prepares manual evaluation prompts, ingests evaluator output, and produces a ranked report.
 - The current workflow combines automated pipeline steps with a manual LLM evaluation step.
 
 ## Pipeline Architecture
 
 - `config/companies.yaml`
+  - Defines target companies and collector configuration
 - Collectors
   - Greenhouse is currently implemented
 - Prefilter
-  - Title, location, remote, and contract signals
+  - Uses title, location, remote, and contract signals
 - Detail enrichment
   - Scrapes full job description and metadata
 - Detail filter
-  - Role fit, salary, travel, workload, and manager scope
-- `reports/evaluation_prompts.md` generation
-- Manual evaluation step
+  - Uses role fit, salary, travel, workload, and manager scope signals
+- Manual evaluation queue generation
+  - `reports/evaluation_queue.json` tracks `pending`, `evaluated`, `merged`, and `skipped`
+- Evaluation prompt generation
+  - `reports/evaluation_prompts.md` is generated for pending jobs only by default
+- Manual evaluator step
   - LLM outputs are copied into `reports/evaluator_results.json`
-  - `reports/evaluation_queue.json` tracks which jobs are pending, already evaluated, merged, or skipped
-- Evaluator results ingestion
-  - Merges evaluator output by `job_id`
+- Evaluator result ingestion
+  - Merges evaluator output back to job metadata by `job_id`
 - Scoring and ranking
-- `reports/final_recommendations.md` output
+  - Produces a recommendation score within each recommendation bucket
+- Final outputs
+  - `reports/evaluator_results_merged.json`
+  - `reports/final_recommendations.md`
+  - `reports/daily_job_report.md`
 
 ## Data Contracts
 
 - `job_id`
   - Format: `source:company_slug:external_job_id`
+  - This is the stable join key across collected jobs, prompts, evaluator results, queue entries, and merged reports
 - `reports/evaluator_results.json`
   - List of evaluator result objects
   - Canonical required fields:
@@ -56,8 +64,14 @@
   - Generated manual work queue keyed by `job_id`
   - Status values: `pending`, `evaluated`, `merged`, `skipped`
   - Used to avoid re-presenting already evaluated jobs in `reports/evaluation_prompts.md` unless forced
+  - `pending` means eligible for manual evaluation and not yet present in evaluator output
+  - `evaluated` means present in `reports/evaluator_results.json` but not yet reflected in the latest merged output
+  - `merged` means already present in `reports/evaluator_results_merged.json`
+  - `skipped` means not sent to manual evaluation, typically because the job was rejected by the detail filter
 - `reports/evaluator_results_merged.json`
   - Contains merged job data, evaluator output, and computed recommendation score
+  - Each merged object should contain both job metadata and evaluator metadata
+  - Key fields include `job_id`, `title`, `company`, `url`, `location` if available, evaluator fields, and `recommendation_score`
 
 ## Candidate Constraints
 
@@ -69,6 +83,15 @@
 - Avoids implementation-heavy product engineering roles
 - Prefers small-team leadership, roughly `8-10` people
 - Does not want large-org leadership or executive-scope roles
+
+## Recommendation Meanings
+
+- `pursue`
+  - A real target role worth serious consideration
+- `practice`
+  - Worth applying to for interview practice or exploratory value, but likely not a top acceptance target
+- `pass`
+  - Not a good fit overall relative to the candidate's goals and constraints
 
 ## Scoring Model (Current)
 
@@ -87,11 +110,34 @@
 ## Current Status
 
 - `job_id` implemented and stable
+- Collector to filter to evaluator pipeline working
+- Evaluation queue generation working
 - Evaluator prompt generation working
 - Manual evaluation workflow in place
 - Evaluator results ingestion working
 - Scoring and ranking implemented
 - `final_recommendations.md` generated successfully
+
+## Key Files
+
+- `main.py`
+  - Primary orchestration entry point for the local pipeline
+- `src/evaluators/job_evaluator.py`
+  - Defines the evaluator prompt and the canonical evaluator output contract
+- `src/reporting/evaluation_queue.py`
+  - Builds the manual work queue and prints queue summary counts
+- `src/reporting/final_report.py`
+  - Normalizes evaluator results, merges them with job metadata, computes scores, and writes final reports
+- `reports/evaluation_queue.json`
+  - Manual evaluation work queue
+- `reports/evaluation_prompts.md`
+  - Prompt batch for pending jobs
+- `reports/evaluator_results.json`
+  - Manually pasted evaluator outputs
+- `reports/evaluator_results_merged.json`
+  - Merged evaluator plus job metadata with scores
+- `reports/final_recommendations.md`
+  - Human-readable ranked report
 
 ## Development Workflow
 
@@ -102,6 +148,7 @@
 - Review `reports/evaluation_prompts.md` for `pending` jobs only
 - Set `FORCE_EVALUATION_PROMPTS=1` to regenerate prompts for all currently eligible jobs
 - Use `python3 -m src.reporting.evaluation_queue` to print queue summary counts
+- Use `python3 -m src.reporting.evaluation_queue --generate` to rebuild the queue from existing report JSON files without running the full collection pipeline
 
 ## Next Planned Improvements
 
@@ -110,3 +157,12 @@
 - Improve the scoring model further
 - Add daily automated run/report
 - Possibly add notifications such as email or Slack
+
+## Guidance For Future AI Assistants
+
+- Treat `job_id` as the canonical identity key across the entire pipeline
+- Preserve backward compatibility for `reports/evaluator_results.json` whenever possible, because it is maintained manually
+- Do not automate LLM calls unless explicitly asked; the current evaluator workflow is intentionally manual
+- Keep changes small and local to the relevant pipeline stage unless there is a clear need to refactor
+- When changing evaluator output handling, prefer normalization and validation over breaking schema changes
+- When changing prompt generation, queue logic, or merge logic, verify that `reports/evaluation_prompts.md`, `reports/evaluation_queue.json`, and `reports/evaluator_results_merged.json` still align by `job_id`
