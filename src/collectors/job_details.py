@@ -1,8 +1,9 @@
 from pathlib import Path
 import hashlib
-import requests
 from bs4 import BeautifulSoup
 import re
+
+from src.collectors.common import fetch_text
 
 
 CACHE_DIR = Path("data/job_pages")
@@ -23,10 +24,7 @@ def fetch_job_page_html(url, force_refresh=False):
     if cache_path.exists() and not force_refresh:
         return cache_path.read_text(encoding="utf-8")
 
-    response = requests.get(url, timeout=30)
-    response.raise_for_status()
-
-    html = response.text
+    html = fetch_text(url)
     cache_path.write_text(html, encoding="utf-8")
 
     return html

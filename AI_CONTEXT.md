@@ -12,6 +12,8 @@
   - Defines target companies and collector configuration
 - Collectors
   - Greenhouse is currently implemented
+  - Shared collector utilities now live in `src/collectors/common.py`
+  - Shared utilities are intentionally minimal: retrying HTTP fetch helpers, text normalization, and base job record assembly
 - Prefilter
   - Uses title, location, remote, and contract signals
 - Detail enrichment
@@ -38,6 +40,9 @@
 - `job_id`
   - Format: `source:company_slug:external_job_id`
   - This is the stable join key across collected jobs, prompts, evaluator results, queue entries, and merged reports
+- Collected job metadata
+  - Base collector records now include `collected_at` as a lightweight UTC timestamp for run/debug context
+  - Core identity fields remain `job_id`, `source`, `company_slug`, and `external_job_id`
 - `reports/evaluator_results.json`
   - List of evaluator result objects
   - Canonical required fields:
@@ -110,6 +115,7 @@
 ## Current Status
 
 - `job_id` implemented and stable
+- Small shared collector layer implemented for retrying HTTP fetches and base record normalization
 - Collector to filter to evaluator pipeline working
 - Evaluation queue generation working
 - Evaluator prompt generation working
@@ -124,6 +130,8 @@
   - Primary orchestration entry point for the local pipeline
 - `src/evaluators/job_evaluator.py`
   - Defines the evaluator prompt and the canonical evaluator output contract
+- `src/collectors/common.py`
+  - Tiny shared collector helpers for retrying HTTP fetches, normalization, and base job record creation
 - `src/reporting/evaluation_queue.py`
   - Builds the manual work queue and prints queue summary counts
 - `src/reporting/final_report.py`
@@ -164,5 +172,6 @@
 - Preserve backward compatibility for `reports/evaluator_results.json` whenever possible, because it is maintained manually
 - Do not automate LLM calls unless explicitly asked; the current evaluator workflow is intentionally manual
 - Keep changes small and local to the relevant pipeline stage unless there is a clear need to refactor
+- Prefer the shared collector helpers in `src/collectors/common.py` for future ATS collectors rather than adding new ad hoc `requests.get(...)` patterns
 - When changing evaluator output handling, prefer normalization and validation over breaking schema changes
 - When changing prompt generation, queue logic, or merge logic, verify that `reports/evaluation_prompts.md`, `reports/evaluation_queue.json`, and `reports/evaluator_results_merged.json` still align by `job_id`

@@ -15,6 +15,7 @@ This document describes the design of the Job Search Agent: its goals, architect
 
 Components:
 - Collectors: fetch or read raw job pages (e.g., `src/collectors/*`).
+  - Shared collector utilities in `src/collectors/common.py` provide minimal retrying HTTP fetch helpers, text normalization, and base job record assembly.
 - Parsers/Detail Extractors: extract structured fields from HTML (title, company, location, salary, description).
 - Evaluators: score and classify jobs against preferences (`src/evaluators/job_evaluator.py`).
 - Filters: pre- and post-filters for noise reduction and deduplication (`src/filters`).
@@ -24,7 +25,7 @@ Components:
 
 ## Data Flow
 
-1. Source acquisition: collectors gather raw HTML pages or API responses.
+1. Source acquisition: collectors gather raw HTML pages or API responses, using a small shared HTTP helper layer for retry and timeout behavior.
 2. Normalization: parsers extract canonical fields and normalize text.
 3. Pre-filtering: remove clearly irrelevant postings (e.g., duplicates, missing key fields).
 4. Evaluation: run scoring pipelines that compare job attributes to user preferences.
@@ -79,6 +80,7 @@ Backward compatibility:
 
 - Keep raw HTML (or API response) alongside extracted records for auditability.
 - Use CSV/JSON exports for reports and a simple DB abstraction for indexing and lookups (`src/storage/database.py`).
+- Base collector records include lightweight collection metadata such as `collected_at` in UTC to help with run tracing and debugging.
 
 ## Reporting
 

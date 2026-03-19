@@ -1,5 +1,4 @@
-import requests
-from src.utils.id_helpers import build_job_id
+from src.collectors.common import build_base_job_record, fetch_json, normalize_text
 
 
 def collect_greenhouse_jobs(company_url, company_name=None):
@@ -12,9 +11,7 @@ def collect_greenhouse_jobs(company_url, company_name=None):
     company_slug = company_url.rstrip("/").split("/")[-1]
     api_url = f"https://boards-api.greenhouse.io/v1/boards/{company_slug}/jobs"
 
-    response = requests.get(api_url, timeout=30)
-    response.raise_for_status()
-    data = response.json()
+    data = fetch_json(api_url)
 
     jobs = []
 
@@ -33,20 +30,18 @@ def collect_greenhouse_jobs(company_url, company_name=None):
                 metadata_text.append(f"{name}: {value}".strip(": "))
 
         external_id = job.get("id")
-        job_id = build_job_id("greenhouse", company_slug, external_id)
-
-        jobs.append({
-            "title": job.get("title", "").strip(),
-            "location": location.strip(),
-            "url": job.get("absolute_url", "").strip(),
-            "external_job_id": external_id,
-            "internal_job_id": external_id,
-            "company_slug": company_slug,
-            "company": company_name or "",
-            "source": "greenhouse",
-            "job_id": job_id,
-            "updated_at": job.get("updated_at", ""),
-            "metadata": " | ".join(metadata_text),
-        })
+        jobs.append(
+            build_base_job_record(
+                "greenhouse",
+                company_slug,
+                external_id,
+                title=job.get("title", ""),
+                location=location,
+                url=job.get("absolute_url", ""),
+                company=company_name or "",
+                updated_at=normalize_text(job.get("updated_at", "")),
+                metadata=normalize_text(" | ".join(metadata_text)),
+            )
+        )
 
     return jobs
