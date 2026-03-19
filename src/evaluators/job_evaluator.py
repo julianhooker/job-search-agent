@@ -93,6 +93,42 @@ Do not be overly optimistic. Be specific and grounded in the job text.
 """.strip()
 
 
+DECISION_RELEVANT_FIELDS = (
+    "job_id",
+    "title",
+    "company",
+    "location",
+    "url",
+    "detail_status",
+    "detail_reasons",
+    "salary_text",
+    "salary_min",
+    "salary_max",
+    "travel_text",
+    "mentions_travel",
+    "mentions_after_hours",
+    "mentions_weekends",
+    "mentions_on_call",
+    "manager_scope",
+    "description_text",
+)
+
+
+def _compact_job_payload(job):
+    payload = {}
+    for field in DECISION_RELEVANT_FIELDS:
+        value = job.get(field)
+        if field == "job_id":
+            payload[field] = value
+            continue
+        if value in (None, "", [], {}):
+            continue
+        if value is False:
+            continue
+        payload[field] = value
+    return payload
+
+
 def build_job_payload(job):
     """
     Keep the payload focused so prompts don't become unnecessarily huge.
@@ -103,40 +139,40 @@ def build_job_payload(job):
             f"Missing job_id for job title={job.get('title')!r}, company={job.get('company')!r}"
         )
 
-    return {
-        "job_id": job_id,
-        "title": job.get("title", ""),
-        "company": job.get("company", ""),
-        "location": job.get("location", ""),
-        "url": job.get("url", ""),
-        "prefilter_status": job.get("prefilter_status", ""),
-        "prefilter_reasons": job.get("prefilter_reasons", ""),
-        "detail_status": job.get("detail_status", ""),
-        "detail_reasons": job.get("detail_reasons", ""),
-        "salary_text": job.get("salary_text", ""),
-        "salary_min": job.get("salary_min", None),
-        "salary_max": job.get("salary_max", None),
-        "travel_text": job.get("travel_text", ""),
-        "employment_type": job.get("employment_type", ""),
-        "mentions_travel": job.get("mentions_travel", False),
-        "mentions_after_hours": job.get("mentions_after_hours", False),
-        "mentions_weekends": job.get("mentions_weekends", False),
-        "mentions_on_call": job.get("mentions_on_call", False),
-        "manager_scope": job.get("manager_scope", ""),
-        "description_text": job.get("description_text", ""),
-    }
+    payload = _compact_job_payload(job)
+    payload["job_id"] = job_id
+    return payload
+
+
+def build_evaluation_prompt_preamble():
+    return f"""
+COPY THIS SECTION ONCE AT THE START OF A MANUAL EVALUATION SESSION.
+IF YOU ARE EVALUATING MULTIPLE JOBS IN ONE CHAT, DO NOT RE-PASTE THIS SECTION FOR EVERY JOB.
+
+{USER_PROFILE}
+
+{EVALUATION_INSTRUCTIONS}
+""".strip()
 
 
 def build_evaluation_prompt(job):
     payload = build_job_payload(job)
+    job_id = payload["job_id"]
+    title = payload.get("title", "Untitled Job")
+    company = payload.get("company", "Unknown Company")
 
     prompt = f"""
-{USER_PROFILE}
+JOB_EVALUATION_BLOCK_START
+job_id: {job_id}
+company: {company}
+title: {title}
 
-{EVALUATION_INSTRUCTIONS}
+Return one JSON object for this job only.
 
 Job data:
 {json.dumps(payload, indent=2, ensure_ascii=False)}
+
+JOB_EVALUATION_BLOCK_END
 """.strip()
 
     return prompt

@@ -16,7 +16,7 @@ from src.reporting.evaluation_queue import (
 from src.reporting.final_report import run_final_report
 from src.filters.prefilter import prefilter_jobs
 from src.filters.detail_filter import detail_filter_jobs
-from src.evaluators.job_evaluator import build_evaluation_prompt
+from src.evaluators.job_evaluator import build_evaluation_prompt, build_evaluation_prompt_preamble
 from src.reporting.daily_report import build_daily_report
 from src.utils.id_helpers import require_job_ids
 
@@ -103,6 +103,7 @@ def main():
         prompt_jobs,
         build_evaluation_prompt,
         "reports/evaluation_prompts.md",
+        shared_prompt=build_evaluation_prompt_preamble(),
     )
 
     # Run the evaluator results ingestion & final report generation
