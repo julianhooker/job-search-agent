@@ -1,6 +1,6 @@
 import os
 
-from src.collectors.greenhouse import collect_greenhouse_jobs
+from src.collectors.registry import get_collector
 from src.collectors.job_details import enrich_jobs_with_details
 from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
@@ -22,13 +22,20 @@ from src.utils.id_helpers import require_job_ids
 
 
 def main():
-    companies = load_companies()
+    company_filter_env = os.getenv("COMPANY_FILTER", "").strip()
+    company_filter = [name.strip() for name in company_filter_env.split(",") if name.strip()] if company_filter_env else None
+    companies = load_companies(company_names=company_filter)
     all_jobs = []
 
+    if company_filter and not companies:
+        raise ValueError(f"No companies matched COMPANY_FILTER={company_filter_env!r}")
+
     for company in companies:
-        if company["platform"] == "greenhouse":
+        platform = company["platform"]
+        collector = get_collector(platform)
+        if collector:
             print(f"Collecting jobs from {company['name']}")
-            jobs = collect_greenhouse_jobs(company["url"], company_name=company.get("name"))
+            jobs = collector(company["url"], company_name=company.get("name"))
 
             # ensure identity fields are present for all collected jobs
             require_job_ids(jobs, stage_name="collection")
@@ -39,6 +46,8 @@ def main():
                     job["company"] = company["name"]
 
             all_jobs.extend(jobs)
+        else:
+            raise ValueError(f"Unsupported collector platform: {platform}")
 
     kept_jobs, maybe_jobs, rejected_jobs = prefilter_jobs(all_jobs)
 

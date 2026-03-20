@@ -16,6 +16,7 @@ This document describes the design of the Job Search Agent: its goals, architect
 Components:
 - Collectors: fetch or read raw job pages (e.g., `src/collectors/*`).
   - Shared collector utilities in `src/collectors/common.py` provide minimal retrying HTTP fetch helpers, text normalization, and base job record assembly.
+  - Lever collection uses the public postings API and maps ATS-specific fields such as `categories`, `workplaceType`, and `salaryRange` into the shared downstream record shape.
 - Parsers/Detail Extractors: extract structured fields from HTML (title, company, location, salary, description).
 - Evaluators: score and classify jobs against preferences (`src/evaluators/job_evaluator.py`).
 - Filters: pre- and post-filters for noise reduction and deduplication (`src/filters`).
@@ -81,6 +82,7 @@ Backward compatibility:
 - Keep raw HTML (or API response) alongside extracted records for auditability.
 - Use CSV/JSON exports for reports and a simple DB abstraction for indexing and lookups (`src/storage/database.py`).
 - Base collector records include lightweight collection metadata such as `collected_at` in UTC to help with run tracing and debugging.
+- ATS-specific limitations should be documented conservatively; for Lever, some boards may omit or sparsely populate fields like salary, commitment, or workplace type, so normalization should preserve stable identity fields and degrade gracefully.
 
 ## Reporting
 

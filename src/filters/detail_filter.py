@@ -9,6 +9,22 @@ def contains_any(text, patterns):
     return any(pattern in text for pattern in patterns)
 
 
+def role_context_text(job):
+    title = normalize_text(job.get("title", ""))
+    metadata = normalize_text(job.get("metadata", ""))
+    return " | ".join(part for part in (title, metadata) if part)
+
+
+ADJACENT_RELEVANCE_PATTERNS = [
+    "security",
+    "identity",
+    "iam",
+    "platform",
+    "integration",
+    "infrastructure",
+]
+
+
 REJECT_ROLE_PATTERNS = [
     "people business partner",
     "people operations",
@@ -68,12 +84,16 @@ CAUTION_ROLE_PATTERNS = [
 def classify_role_fit(job):
     title = normalize_text(job.get("title", ""))
     description = normalize_text(job.get("description_text", ""))
-    combined = f"{title}\n{description[:5000]}"
+    role_context = role_context_text(job)
+    combined = "\n".join(part for part in (role_context, description[:5000]) if part)
     implementation_heavy_title_patterns = [
         "backend engineer",
         "software engineer",
         "frontend engineer",
         "full stack",
+        "security engineer",
+        "platform engineer",
+        "integration engineer",
     ]
     architecture_or_platform_title_patterns = [
         "architecture",
@@ -81,18 +101,22 @@ def classify_role_fit(job):
         "platform",
     ]
 
-    if contains_any(combined, REJECT_ROLE_PATTERNS):
+    # Reject-role patterns are broad and can appear in EEO boilerplate
+    # or company descriptions, so only trust them in title/metadata context.
+    if contains_any(role_context, REJECT_ROLE_PATTERNS):
         return "reject", ["Role family appears outside target area"]
 
     if contains_any(combined, KEEP_ROLE_PATTERNS):
         if contains_any(title, implementation_heavy_title_patterns):
-            return "maybe", ["Implementation-heavy engineering title"]
+            if contains_any(combined, ADJACENT_RELEVANCE_PATTERNS):
+                return "maybe", ["Relevant IAM/security/platform area, but title appears engineering-heavy"]
+            return "maybe", ["Title appears engineering-heavy relative to target focus"]
 
         if "engineering manager" in title and not contains_any(title, architecture_or_platform_title_patterns):
             return "maybe", ["Engineering manager title is not clearly architecture/platform-oriented"]
 
-        if contains_any(combined, CAUTION_ROLE_PATTERNS):
-            return "maybe", ["Role is relevant but has cautionary signals"]
+        if contains_any(role_context, CAUTION_ROLE_PATTERNS):
+            return "maybe", ["Role appears relevant, but includes cautionary signals"]
         return "keep", []
 
     return "maybe", ["Role fit is not clearly established from details"]
@@ -103,7 +127,7 @@ def classify_salary(job, minimum_salary=135000):
     salary_max = job.get("salary_max")
 
     if salary_min is None and salary_max is None:
-        return "keep", ["Salary not found"]
+        return "keep", ["Compensation not listed"]
 
     if salary_max is not None and salary_max < minimum_salary:
         return "reject", [f"Salary max below ${minimum_salary:,}"]

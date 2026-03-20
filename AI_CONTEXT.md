@@ -10,8 +10,10 @@
 
 - `config/companies.yaml`
   - Defines target companies and collector configuration
+  - Example Lever-backed company entry now includes Aledade via `https://jobs.lever.co/aledade`
 - Collectors
   - Greenhouse is currently implemented
+  - Lever is also supported via the public postings API
   - Shared collector utilities now live in `src/collectors/common.py`
   - Shared utilities are intentionally minimal: retrying HTTP fetch helpers, text normalization, and base job record assembly
 - Prefilter
@@ -132,6 +134,8 @@
   - Defines the evaluator prompt and the canonical evaluator output contract
 - `src/collectors/common.py`
   - Tiny shared collector helpers for retrying HTTP fetches, normalization, and base job record creation
+- `src/collectors/lever.py`
+  - Public Lever postings collector that normalizes Lever API fields into the shared downstream job shape
 - `src/reporting/evaluation_queue.py`
   - Builds the manual work queue and prints queue summary counts
 - `src/reporting/final_report.py`
@@ -153,10 +157,12 @@
 - Use Codex for modifying code in the repo
 - Manual evaluation step is currently used instead of live LLM API calls
 - Run the pipeline to refresh `reports/evaluation_queue.json`
+- Set `COMPANY_FILTER=Aledade` to run only Aledade through the existing pipeline
 - Review `reports/evaluation_prompts.md` for `pending` jobs only
 - Set `FORCE_EVALUATION_PROMPTS=1` to regenerate prompts for all currently eligible jobs
 - Use `python3 -m src.reporting.evaluation_queue` to print queue summary counts
 - Use `python3 -m src.reporting.evaluation_queue --generate` to rebuild the queue from existing report JSON files without running the full collection pipeline
+- Use `./.venv/bin/python -m src.collectors.smoke_test --company Aledade` to validate only the configured Aledade Lever collector and print sample normalized records
 
 ## Next Planned Improvements
 
@@ -173,5 +179,8 @@
 - Do not automate LLM calls unless explicitly asked; the current evaluator workflow is intentionally manual
 - Keep changes small and local to the relevant pipeline stage unless there is a clear need to refactor
 - Prefer the shared collector helpers in `src/collectors/common.py` for future ATS collectors rather than adding new ad hoc `requests.get(...)` patterns
+- Lever collection currently depends on the public postings API fields such as `categories`, `workplaceType`, and `salaryRange`; if a company’s Lever board omits those fields, normalization falls back conservatively and malformed records are skipped with warnings
+- Lever hosted pages may be sparsely server-rendered, so the collector preserves the richer Lever API plaintext description when detail-page extraction returns only thin header text
+- To add a Lever company, add a `platform: lever` entry in `config/companies.yaml` using a public board URL such as `https://jobs.lever.co/<company_slug>`; Aledade is the first real configured example
 - When changing evaluator output handling, prefer normalization and validation over breaking schema changes
 - When changing prompt generation, queue logic, or merge logic, verify that `reports/evaluation_prompts.md`, `reports/evaluation_queue.json`, and `reports/evaluator_results_merged.json` still align by `job_id`

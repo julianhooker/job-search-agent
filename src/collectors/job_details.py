@@ -9,6 +9,27 @@ from src.collectors.common import fetch_text
 CACHE_DIR = Path("data/job_pages")
 
 
+def _is_empty_detail_value(value):
+    return value in (None, "", [], {}, False)
+
+
+def merge_job_details(existing_job, extracted_details):
+    """
+    Prefer freshly extracted non-empty values, but preserve existing API-derived
+    values when HTML extraction returns nothing useful for a field.
+    """
+    merged = dict(existing_job)
+    for key, value in extracted_details.items():
+        if key == "description_text":
+            existing_value = existing_job.get(key)
+            if existing_value and value and len(str(value).strip()) < max(200, len(str(existing_value).strip()) // 2):
+                continue
+        if _is_empty_detail_value(value) and not _is_empty_detail_value(existing_job.get(key)):
+            continue
+        merged[key] = value
+    return merged
+
+
 def url_to_cache_path(url):
     digest = hashlib.md5(url.encode("utf-8")).hexdigest()
     return CACHE_DIR / f"{digest}.html"
@@ -158,11 +179,7 @@ def enrich_job_with_details(job, force_refresh=False):
     """
     html = fetch_job_page_html(job["url"], force_refresh=force_refresh)
     details = extract_job_detail_fields(html)
-
-    enriched = dict(job)
-    enriched.update(details)
-
-    return enriched
+    return merge_job_details(job, details)
 
 
 def enrich_jobs_with_details(jobs, force_refresh=False):

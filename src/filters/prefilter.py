@@ -6,6 +6,23 @@ def contains_any(text, patterns):
     return any(pattern in text for pattern in patterns)
 
 
+US_STATE_ABBREVIATIONS = {
+    "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga",
+    "hi", "ia", "id", "il", "in", "ks", "ky", "la", "ma", "md",
+    "me", "mi", "mn", "mo", "ms", "mt", "nc", "nd", "ne", "nh",
+    "nj", "nm", "nv", "ny", "oh", "ok", "or", "pa", "ri", "sc",
+    "sd", "tn", "tx", "ut", "va", "vt", "wa", "wi", "wv", "wy",
+    "dc",
+}
+
+
+def looks_like_us_city_state(text):
+    parts = [part.strip() for part in text.split(",") if part.strip()]
+    if len(parts) < 2:
+        return False
+    return parts[-1] in US_STATE_ABBREVIATIONS
+
+
 REJECT_TITLE_PATTERNS = [
     "account executive",
     "business development",
@@ -100,8 +117,9 @@ def classify_title(title_text):
     return "maybe", ["Title does not clearly match target role family"]
 
 
-def classify_location(location_text):
+def classify_location(location_text, workplace_type=""):
     text = normalize_text(location_text)
+    normalized_workplace = normalize_text(workplace_type)
 
     if not text:
         return "maybe", ["Location missing or unclear"]
@@ -150,6 +168,12 @@ def classify_location(location_text):
 
     if contains_any(text, strong_us_signals):
         return "keep", []
+
+    if normalized_workplace == "remote":
+        if text.startswith("remote, ") and looks_like_us_city_state(text.removeprefix("remote, ").strip()):
+            return "keep", []
+        if text == "remote":
+            return "maybe", ["Location is broad or ambiguous, not clearly US-only"]
 
     # Ambiguous but plausible
     maybe_us_signals = [
@@ -221,7 +245,7 @@ def combine_decisions(decisions):
 
 def prefilter_job(job):
     title_status = classify_title(job.get("title", ""))
-    location_status = classify_location(job.get("location", ""))
+    location_status = classify_location(job.get("location", ""), job.get("workplace_type", ""))
     remote_status = classify_remote_status(job.get("location", ""))
     employment_status = classify_employment_type(job)
 

@@ -1,4 +1,10 @@
 companies:
+  # Supported platforms:
+  # - greenhouse: https://job-boards.greenhouse.io/<company_slug>
+  # - lever: https://jobs.lever.co/<company_slug> or https://jobs.eu.lever.co/<company_slug>
   - name: GitLab
     platform: greenhouse
     url: https://boards.greenhouse.io/gitlab
+  - name: Aledade
+    platform: lever
+    url: https://jobs.lever.co/aledade

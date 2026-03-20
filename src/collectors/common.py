@@ -16,6 +16,10 @@ def normalize_text(value):
     return str(value).strip()
 
 
+def log_collector_event(source, message, level="INFO"):
+    print(f"[collector:{source}] {level}: {message}")
+
+
 def build_retry_session(
     total_retries=3,
     backoff_factor=0.5,
