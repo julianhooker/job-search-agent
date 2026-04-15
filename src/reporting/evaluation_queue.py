@@ -2,6 +2,12 @@ import argparse
 import json
 from pathlib import Path
 
+from src.reporting.paths import (
+    EVALUATION_QUEUE_JSON,
+    EVALUATOR_RESULTS,
+    EVALUATOR_RESULTS_MERGED,
+    JOBS_DETAIL_REVIEW_JSON,
+)
 
 QUEUE_STATUSES = {"pending", "evaluated", "merged", "skipped"}
 
@@ -89,7 +95,7 @@ def build_evaluation_queue(candidate_jobs, skipped_jobs=None, eval_results=None,
     return queue_items
 
 
-def write_evaluation_queue(queue_items, filename="reports/evaluation_queue.json"):
+def write_evaluation_queue(queue_items, filename=EVALUATION_QUEUE_JSON):
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
@@ -116,10 +122,10 @@ def print_queue_summary(queue_items):
 
 
 def generate_queue_from_reports(
-    review_file="reports/jobs_detail_review.json",
-    eval_file="reports/evaluator_results.json",
-    merged_file="reports/evaluator_results_merged.json",
-    output_file="reports/evaluation_queue.json",
+    review_file=JOBS_DETAIL_REVIEW_JSON,
+    eval_file=EVALUATOR_RESULTS,
+    merged_file=EVALUATOR_RESULTS_MERGED,
+    output_file=EVALUATION_QUEUE_JSON,
 ):
     review_jobs = load_json_file(review_file)
     eval_results = load_json_file(eval_file)
@@ -156,14 +162,14 @@ def main():
     )
     parser.add_argument(
         "--queue-file",
-        default="reports/evaluation_queue.json",
+        default=EVALUATION_QUEUE_JSON,
         help="Path to the evaluation queue JSON file",
     )
-    parser.add_argument("--review-file", default="reports/jobs_detail_review.json", help="Path to detail review jobs JSON")
-    parser.add_argument("--eval-file", default="reports/evaluator_results.json", help="Path to evaluator results JSON")
+    parser.add_argument("--review-file", default=JOBS_DETAIL_REVIEW_JSON, help="Path to detail review jobs JSON")
+    parser.add_argument("--eval-file", default=EVALUATOR_RESULTS, help="Path to evaluator results JSON")
     parser.add_argument(
         "--merged-file",
-        default="reports/evaluator_results_merged.json",
+        default=EVALUATOR_RESULTS_MERGED,
         help="Path to merged evaluator results JSON",
     )
     args = parser.parse_args()

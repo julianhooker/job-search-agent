@@ -5,6 +5,21 @@ from src.collectors.job_details import enrich_jobs_with_details
 from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
 from src.reporting.json_export import export_jobs_json
+from src.reporting.paths import (
+    EVALUATION_BATCH_PROMPT,
+    EVALUATION_PROMPTS,
+    EVALUATION_QUEUE_JSON,
+    EVALUATOR_RESULTS,
+    EVALUATOR_RESULTS_MERGED,
+    JOBS_DETAIL_KEEP_CSV,
+    JOBS_DETAIL_MAYBE_CSV,
+    JOBS_DETAIL_REJECT_CSV,
+    JOBS_DETAIL_REVIEW_JSON,
+    JOBS_KEEP_CSV,
+    JOBS_MAYBE_CSV,
+    JOBS_REJECTED_CSV,
+    JOBS_REVIEW_JSON,
+)
 from src.reporting.prompt_export import (
     export_batch_evaluation_prompt,
     export_evaluation_prompts,
@@ -77,16 +92,16 @@ def main():
     print(f"Maybe {len(detail_maybe)} jobs after detail filter")
     print(f"Rejected {len(detail_reject)} jobs after detail filter")
 
-    export_jobs_csv(kept_jobs, "reports/jobs_keep.csv")
-    export_jobs_csv(maybe_jobs, "reports/jobs_maybe.csv")
-    export_jobs_csv(rejected_jobs, "reports/jobs_rejected.csv")
+    export_jobs_csv(kept_jobs, JOBS_KEEP_CSV)
+    export_jobs_csv(maybe_jobs, JOBS_MAYBE_CSV)
+    export_jobs_csv(rejected_jobs, JOBS_REJECTED_CSV)
 
-    export_jobs_json(enriched_review_jobs, "reports/jobs_review.json")
+    export_jobs_json(enriched_review_jobs, JOBS_REVIEW_JSON)
 
-    export_jobs_csv(detail_keep, "reports/jobs_detail_keep.csv")
-    export_jobs_csv(detail_maybe, "reports/jobs_detail_maybe.csv")
-    export_jobs_csv(detail_reject, "reports/jobs_detail_reject.csv")
-    export_jobs_json(detail_keep + detail_maybe + detail_reject, "reports/jobs_detail_review.json")
+    export_jobs_csv(detail_keep, JOBS_DETAIL_KEEP_CSV)
+    export_jobs_csv(detail_maybe, JOBS_DETAIL_MAYBE_CSV)
+    export_jobs_csv(detail_reject, JOBS_DETAIL_REJECT_CSV)
+    export_jobs_json(detail_keep + detail_maybe + detail_reject, JOBS_DETAIL_REVIEW_JSON)
 
     evaluator_jobs = detail_keep + detail_maybe
     evaluator_jobs_by_id = {job["job_id"]: job for job in evaluator_jobs}
@@ -94,15 +109,15 @@ def main():
     # Final check before generating evaluation prompts
     require_job_ids(evaluator_jobs, stage_name="before_prompt_export")
 
-    existing_eval_results = load_queue_input_json("reports/evaluator_results.json")
-    existing_merged_results = load_queue_input_json("reports/evaluator_results_merged.json")
+    existing_eval_results = load_queue_input_json(EVALUATOR_RESULTS)
+    existing_merged_results = load_queue_input_json(EVALUATOR_RESULTS_MERGED)
     evaluation_queue = build_evaluation_queue(
         candidate_jobs=evaluator_jobs,
         skipped_jobs=detail_reject,
         eval_results=existing_eval_results,
         merged_results=existing_merged_results,
     )
-    write_evaluation_queue(evaluation_queue, "reports/evaluation_queue.json")
+    write_evaluation_queue(evaluation_queue, EVALUATION_QUEUE_JSON)
     print_queue_summary(evaluation_queue)
 
     force_evaluation_prompts = os.getenv("FORCE_EVALUATION_PROMPTS", "").strip().lower() in {"1", "true", "yes"}
@@ -114,12 +129,12 @@ def main():
     export_evaluation_prompts(
         prompt_jobs,
         build_evaluation_prompt,
-        "reports/evaluation_prompts.md",
+        EVALUATION_PROMPTS,
         shared_prompt=build_evaluation_prompt_preamble(),
     )
     export_batch_evaluation_prompt(
         prompt_jobs,
-        "reports/evaluation_batch_prompt.md",
+        EVALUATION_BATCH_PROMPT,
     )
 
     # Run the evaluator results ingestion & final report generation

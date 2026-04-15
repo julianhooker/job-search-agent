@@ -1,6 +1,12 @@
 import json
 from pathlib import Path
 
+from src.reporting.paths import (
+    EVALUATOR_RESULTS,
+    EVALUATOR_RESULTS_MERGED,
+    FINAL_RECOMMENDATIONS,
+    JOBS_DETAIL_REVIEW_JSON,
+)
 
 RECOMMENDATION_VALUES = {"pursue", "practice", "pass"}
 LEVEL_VALUES = {"low", "medium", "high"}
@@ -260,10 +266,10 @@ def run_final_report():
         return clamp_score(score)
 
     # Paths
-    review_path = Path("reports/jobs_detail_review.json")
-    eval_path = Path("reports/evaluator_results.json")
-    merged_path = Path("reports/evaluator_results_merged.json")
-    md_path = Path("reports/final_recommendations.md")
+    review_path = Path(JOBS_DETAIL_REVIEW_JSON)
+    eval_path = Path(EVALUATOR_RESULTS)
+    merged_path = Path(EVALUATOR_RESULTS_MERGED)
+    md_path = Path(FINAL_RECOMMENDATIONS)
 
     print("Loading review jobs from", review_path)
     review_jobs = load_json_file(review_path)

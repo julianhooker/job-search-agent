@@ -1,7 +1,9 @@
 from pathlib import Path
 
+from src.reporting.paths import DAILY_JOB_REPORT
 
-def build_daily_report(jobs, filename="reports/daily_job_report.md"):
+
+def build_daily_report(jobs, filename=DAILY_JOB_REPORT):
 
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
