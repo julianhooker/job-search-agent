@@ -5,7 +5,10 @@ from src.collectors.job_details import enrich_jobs_with_details
 from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
 from src.reporting.json_export import export_jobs_json
-from src.reporting.prompt_export import export_evaluation_prompts
+from src.reporting.prompt_export import (
+    export_batch_evaluation_prompt,
+    export_evaluation_prompts,
+)
 from src.reporting.evaluation_queue import (
     build_evaluation_queue,
     load_json_file as load_queue_input_json,
@@ -113,6 +116,10 @@ def main():
         build_evaluation_prompt,
         "reports/evaluation_prompts.md",
         shared_prompt=build_evaluation_prompt_preamble(),
+    )
+    export_batch_evaluation_prompt(
+        prompt_jobs,
+        "reports/evaluation_batch_prompt.md",
     )
 
     # Run the evaluator results ingestion & final report generation

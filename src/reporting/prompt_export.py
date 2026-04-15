@@ -1,4 +1,12 @@
+import json
 from pathlib import Path
+
+from src.evaluators.job_evaluator import (
+    CANONICAL_EVALUATOR_RESULT_SCHEMA,
+    EVALUATION_INSTRUCTIONS,
+    USER_PROFILE,
+    build_job_payload,
+)
 
 def export_evaluation_prompts(jobs, build_prompt_fn, filename="reports/evaluation_prompts.md", shared_prompt=None):
     path = Path(filename)
@@ -53,3 +61,43 @@ def export_evaluation_prompts(jobs, build_prompt_fn, filename="reports/evaluatio
 
     path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Saved {len(jobs)} evaluation prompts to {filename}")
+
+
+def export_batch_evaluation_prompt(jobs, filename="reports/evaluation_batch_prompt.md"):
+    path = Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    jobs_payload = [build_job_payload(job) for job in jobs]
+    batch_prompt = "\n".join(
+        [
+            "Evaluate the following jobs for the candidate.",
+            "",
+            USER_PROFILE,
+            "",
+            EVALUATION_INSTRUCTIONS,
+            "",
+            "For this batch request, override the single-job output instruction above.",
+            "Return ONLY a JSON array. Each element must follow this schema:",
+            CANONICAL_EVALUATOR_RESULT_SCHEMA,
+            "",
+            "Every array element must include all required fields above.",
+            "Use explicit `unknown` or `ambiguous` values instead of omitting assessment keys.",
+            "",
+            "Jobs:",
+            json.dumps(jobs_payload, indent=2),
+        ]
+    )
+
+    lines = [
+        "# Batch Job Evaluation Prompt",
+        "",
+        "Copy the prompt below into your LLM to evaluate all jobs at once.",
+        "",
+        "```text",
+        batch_prompt,
+        "```",
+        "",
+    ]
+
+    path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Saved batch evaluation prompt to {filename}")

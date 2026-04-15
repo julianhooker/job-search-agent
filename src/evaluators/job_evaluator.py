@@ -1,6 +1,38 @@
 import json
 
 
+CANONICAL_EVALUATOR_RESULT_FIELDS = (
+    "job_id",
+    "final_recommendation",
+    "fit_score",
+    "ai_durability",
+    "confidence",
+    "key_strengths",
+    "key_concerns",
+    "reasoning",
+    "remote_assessment",
+    "travel_assessment",
+    "salary_assessment",
+)
+
+
+CANONICAL_EVALUATOR_RESULT_SCHEMA = """
+{
+  "job_id": "<exact job_id from the job data>",
+  "final_recommendation": "pursue" | "practice" | "pass",
+  "fit_score": integer from 1 to 10,
+  "ai_durability": "low" | "medium" | "high",
+  "confidence": "low" | "medium" | "high",
+  "key_strengths": ["...", "..."],
+  "key_concerns": ["...", "..."],
+  "reasoning": "...",
+  "remote_assessment": "aligned" | "ambiguous" | "misaligned" | "unknown",
+  "travel_assessment": "low" | "moderate" | "high" | "unknown",
+  "salary_assessment": "meets_target" | "below_target" | "mixed" | "unknown"
+}
+""".strip()
+
+
 USER_PROFILE = """
 Candidate profile:
 
@@ -50,28 +82,17 @@ EVALUATION_INSTRUCTIONS = """
 Evaluate this job for this candidate.
 
 Return JSON only as a single object using this canonical schema:
-{
-  "job_id": "<exact job_id from the job data>",
-  "final_recommendation": "pursue" | "practice" | "pass",
-  "fit_score": integer from 1 to 10,
-  "ai_durability": "low" | "medium" | "high",
-  "confidence": "low" | "medium" | "high",
-  "key_strengths": ["...", "..."],
-  "key_concerns": ["...", "..."],
-  "reasoning": "...",
-  "remote_assessment": "aligned" | "ambiguous" | "misaligned" | "unknown",
-  "travel_assessment": "low" | "moderate" | "high" | "unknown",
-  "salary_assessment": "meets_target" | "below_target" | "mixed" | "unknown"
-}
+{CANONICAL_EVALUATOR_RESULT_SCHEMA}
 
 Rules:
 - The returned "job_id" must exactly match the job_id provided in the job data.
 - Return JSON only, with no markdown fences and no extra commentary.
 - Do not omit job_id.
-- Required fields: `job_id`, `final_recommendation`, `fit_score`, `ai_durability`, `confidence`.
+- Required fields: `job_id`, `final_recommendation`, `fit_score`, `ai_durability`, `confidence`, `remote_assessment`, `travel_assessment`, `salary_assessment`.
 - `key_strengths`, `key_concerns`, and `reasoning` should be included whenever possible.
-- Include `remote_assessment`, `travel_assessment`, and `salary_assessment` when the job text makes those judgments possible.
-- Use `unknown` or `ambiguous` rather than guessing when salary, travel, or remote status is unclear.
+- Always include `remote_assessment`, `travel_assessment`, and `salary_assessment`.
+- Use `ambiguous` only for `remote_assessment` when remote/hybrid fit is unclear.
+- Use `unknown` for unclear `travel_assessment` or `salary_assessment`.
 
 Interpretation:
 - pursue = a real candidate match worth serious consideration
@@ -90,7 +111,7 @@ In your reasoning, explicitly consider:
 Explicitly treat unclear travel expectations as a potential risk if the role appears customer-facing or sales-adjacent.
 
 Do not be overly optimistic. Be specific and grounded in the job text.
-""".strip()
+""".strip().format(CANONICAL_EVALUATOR_RESULT_SCHEMA=CANONICAL_EVALUATOR_RESULT_SCHEMA)
 
 
 DECISION_RELEVANT_FIELDS = (

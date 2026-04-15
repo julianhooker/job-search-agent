@@ -7,6 +7,16 @@ LEVEL_VALUES = {"low", "medium", "high"}
 REMOTE_ASSESSMENT_VALUES = {"aligned", "ambiguous", "misaligned", "unknown"}
 TRAVEL_ASSESSMENT_VALUES = {"low", "moderate", "high", "unknown"}
 SALARY_ASSESSMENT_VALUES = {"meets_target", "below_target", "mixed", "unknown"}
+CANONICAL_REQUIRED_EVALUATOR_FIELDS = (
+    "job_id",
+    "final_recommendation",
+    "fit_score",
+    "ai_durability",
+    "confidence",
+    "remote_assessment",
+    "travel_assessment",
+    "salary_assessment",
+)
 
 
 def load_json_file(path):
@@ -74,10 +84,12 @@ def normalize_string_list(value):
     return []
 
 
-def normalize_optional_enum(value, allowed_values, default="unknown"):
+def normalize_optional_enum(value, allowed_values, default="unknown", aliases=None):
     normalized = (value or "").strip().lower()
     if not normalized:
         return default
+    if aliases and normalized in aliases:
+        normalized = aliases[normalized]
     if normalized not in allowed_values:
         raise ValueError(f"Invalid value {value!r}; expected one of {sorted(allowed_values)}")
     return normalized
@@ -129,21 +141,41 @@ def normalize_evaluator_result(raw_result, index):
     normalized["key_concerns"] = normalize_string_list(result.get("key_concerns"))
     normalized["reasoning"] = str(result.get("reasoning") or "").strip()
 
-    # Optional structured assessments to make unknown/ambiguous states explicit.
+    missing_structured_fields = []
+
     if "remote_assessment" in result or "remote_status" in result:
         normalized["remote_assessment"] = normalize_optional_enum(
             result.get("remote_assessment", result.get("remote_status")),
             REMOTE_ASSESSMENT_VALUES,
         )
+    else:
+        missing_structured_fields.append("remote_assessment")
+        normalized["remote_assessment"] = "unknown"
+
     if "travel_assessment" in result:
         normalized["travel_assessment"] = normalize_optional_enum(
             result.get("travel_assessment"),
             TRAVEL_ASSESSMENT_VALUES,
+            aliases={"ambiguous": "unknown"},
         )
+    else:
+        missing_structured_fields.append("travel_assessment")
+        normalized["travel_assessment"] = "unknown"
+
     if "salary_assessment" in result:
         normalized["salary_assessment"] = normalize_optional_enum(
             result.get("salary_assessment"),
             SALARY_ASSESSMENT_VALUES,
+            aliases={"ambiguous": "unknown"},
+        )
+    else:
+        missing_structured_fields.append("salary_assessment")
+        normalized["salary_assessment"] = "unknown"
+
+    if missing_structured_fields:
+        print(
+            f"Warning: evaluator result for job_id {job_id} is missing canonical field(s) "
+            f"{', '.join(missing_structured_fields)}; defaulting them to 'unknown'"
         )
 
     # Optional pass metadata for future multi-pass workflows.
