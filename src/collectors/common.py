@@ -8,6 +8,10 @@ from src.utils.id_helpers import build_job_id
 
 
 DEFAULT_TIMEOUT = 30
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
 
 
 def normalize_text(value):
@@ -26,6 +30,12 @@ def build_retry_session(
     status_forcelist=(429, 500, 502, 503, 504),
 ):
     session = requests.Session()
+    session.headers.update(
+        {
+            "User-Agent": DEFAULT_USER_AGENT,
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+    )
     retry = Retry(
         total=total_retries,
         read=total_retries,

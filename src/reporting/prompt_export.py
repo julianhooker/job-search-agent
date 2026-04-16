@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import re
 
 from src.evaluators.job_evaluator import (
     CANONICAL_EVALUATOR_RESULT_SCHEMA,
@@ -63,12 +64,9 @@ def export_evaluation_prompts(jobs, build_prompt_fn, filename="reports/evaluatio
     print(f"Saved {len(jobs)} evaluation prompts to {filename}")
 
 
-def export_batch_evaluation_prompt(jobs, filename="reports/evaluation_batch_prompt.md"):
-    path = Path(filename)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
+def _build_batch_prompt_text(jobs):
     jobs_payload = [build_job_payload(job) for job in jobs]
-    batch_prompt = "\n".join(
+    return "\n".join(
         [
             "Evaluate the following jobs for the candidate.",
             "",
@@ -88,10 +86,15 @@ def export_batch_evaluation_prompt(jobs, filename="reports/evaluation_batch_prom
         ]
     )
 
-    lines = [
-        "# Batch Job Evaluation Prompt",
+
+def _batch_prompt_markdown(batch_prompt, heading="# Batch Job Evaluation Prompt", description=None):
+    if description is None:
+        description = "Copy the prompt below into your LLM to evaluate all jobs at once."
+
+    return [
+        heading,
         "",
-        "Copy the prompt below into your LLM to evaluate all jobs at once.",
+        description,
         "",
         "```text",
         batch_prompt,
@@ -99,5 +102,39 @@ def export_batch_evaluation_prompt(jobs, filename="reports/evaluation_batch_prom
         "",
     ]
 
+
+def _company_slug(company_name):
+    slug = re.sub(r"[^a-z0-9]+", "_", company_name.lower()).strip("_")
+    return slug or "unknown_company"
+
+
+def export_batch_evaluation_prompt(jobs, filename="reports/evaluation_batch_prompt.md"):
+    path = Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    batch_prompt = _build_batch_prompt_text(jobs)
+    lines = _batch_prompt_markdown(batch_prompt)
     path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Saved batch evaluation prompt to {filename}")
+
+
+def export_batch_evaluation_prompts_by_company(jobs, output_dir="reports"):
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    jobs_by_company = {}
+    for job in jobs:
+        company = job.get("company", "Unknown Company")
+        jobs_by_company.setdefault(company, []).append(job)
+
+    for company, company_jobs in sorted(jobs_by_company.items()):
+        slug = _company_slug(company)
+        filename = output_path / f"evaluation_batch_prompt_{slug}.md"
+        batch_prompt = _build_batch_prompt_text(company_jobs)
+        lines = _batch_prompt_markdown(
+            batch_prompt,
+            heading=f"# Batch Job Evaluation Prompt: {company}",
+            description=f"Copy the prompt below into your LLM to evaluate the current {company} jobs as one batch.",
+        )
+        filename.write_text("\n".join(lines), encoding="utf-8")
+        print(f"Saved {len(company_jobs)} {company} batch jobs to {filename}")

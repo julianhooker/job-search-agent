@@ -1,7 +1,11 @@
 companies:
   # Supported platforms:
+  # - govcio: https://govcio.com/jobs/
   # - greenhouse: https://job-boards.greenhouse.io/<company_slug>
   # - lever: https://jobs.lever.co/<company_slug> or https://jobs.eu.lever.co/<company_slug>
+  - name: GovCIO
+    platform: govcio
+    url: https://govcio.com/jobs/
   - name: GitLab
     platform: greenhouse
     url: https://boards.greenhouse.io/gitlab

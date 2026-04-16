@@ -22,6 +22,7 @@ from src.reporting.paths import (
 )
 from src.reporting.prompt_export import (
     export_batch_evaluation_prompt,
+    export_batch_evaluation_prompts_by_company,
     export_evaluation_prompts,
 )
 from src.reporting.evaluation_queue import (
@@ -136,6 +137,7 @@ def main():
         prompt_jobs,
         EVALUATION_BATCH_PROMPT,
     )
+    export_batch_evaluation_prompts_by_company(prompt_jobs)
 
     # Run the evaluator results ingestion & final report generation
     try:
