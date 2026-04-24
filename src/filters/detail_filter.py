@@ -9,6 +9,10 @@ def contains_any(text, patterns):
     return any(pattern in text for pattern in patterns)
 
 
+def contains_all(text, patterns):
+    return all(pattern in text for pattern in patterns)
+
+
 def role_context_text(job):
     title = normalize_text(job.get("title", ""))
     metadata = normalize_text(job.get("metadata", ""))
@@ -26,6 +30,18 @@ ADJACENT_RELEVANCE_PATTERNS = [
 
 
 REJECT_ROLE_PATTERNS = [
+    "actuarial",
+    "actuary",
+    "business performance",
+    "cybersecurity incident manager",
+    "field cto",
+    "incident manager",
+    "medical records retrieval",
+    "operational excellence",
+    "performance excellence",
+    "pyramid analytics",
+    "service desk",
+    "steering committee",
     "people business partner",
     "people operations",
     "human resources",
@@ -80,6 +96,11 @@ CAUTION_ROLE_PATTERNS = [
     "sox",
 ]
 
+REJECT_ROLE_COMBINATIONS = [
+    ("performance", "operations"),
+    ("performance", "operational"),
+]
+
 
 def classify_role_fit(job):
     title = normalize_text(job.get("title", ""))
@@ -104,6 +125,9 @@ def classify_role_fit(job):
     # Reject-role patterns are broad and can appear in EEO boilerplate
     # or company descriptions, so only trust them in title/metadata context.
     if contains_any(role_context, REJECT_ROLE_PATTERNS):
+        return "reject", ["Role family appears outside target area"]
+
+    if any(contains_all(role_context, patterns) for patterns in REJECT_ROLE_COMBINATIONS):
         return "reject", ["Role family appears outside target area"]
 
     if contains_any(combined, KEEP_ROLE_PATTERNS):

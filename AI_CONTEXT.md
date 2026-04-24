@@ -18,14 +18,19 @@
   - Shared utilities are intentionally minimal: retrying HTTP fetch helpers, text normalization, and base job record assembly
 - Prefilter
   - Uses title, location, remote, and contract signals
+  - `reject` at this stage is final for manual workflow purposes and does not continue to detail enrichment
 - Detail enrichment
   - Scrapes full job description and metadata
 - Detail filter
   - Uses role fit, salary, travel, workload, and manager scope signals
+  - Only `keep`, `maybe`, and backward-compatible `review` statuses remain eligible for manual evaluation
 - Manual evaluation queue generation
-  - `reports/evaluation_queue.json` tracks `pending`, `evaluated`, `merged`, and `skipped`
+  - `reports/state/evaluation_queue.json` tracks `pending`, `evaluated`, `merged`, and `skipped`
+  - `skipped` covers confident auto-rejects from either prefilter or detail filter so they stay auditable without creating manual work
 - Evaluation prompt generation
-  - `reports/evaluation_prompts.md` is generated for pending jobs only by default
+  - `reports/evaluation_prompts.md` is generated as an index for pending jobs only by default
+  - Individual self-contained prompt files are written to `reports/evaluation_prompts/batch_###.md`
+  - Prompt batching is deterministic and constrained by max jobs per batch plus an approximate character budget
 - Manual evaluator step
   - LLM outputs are copied into `reports/evaluator_results.json`
 - Evaluator result ingestion
@@ -71,14 +76,23 @@
   - Generated manual work queue keyed by `job_id`
   - Status values: `pending`, `evaluated`, `merged`, `skipped`
   - Used to avoid re-presenting already evaluated jobs in `reports/evaluation_prompts.md` unless forced
+  - Only jobs with pipeline status `keep`, `maybe`, or legacy `review` are eligible for manual evaluation
   - `pending` means eligible for manual evaluation and not yet present in evaluator output
   - `evaluated` means present in `reports/evaluator_results.json` but not yet reflected in the latest merged output
   - `merged` means already present in `reports/evaluator_results_merged.json`
-  - `skipped` means not sent to manual evaluation, typically because the job was rejected by the detail filter
+  - `skipped` means not sent to manual evaluation because it was confidently auto-rejected upstream
 - `reports/evaluator_results_merged.json`
   - Contains merged job data, evaluator output, and computed recommendation score
   - Each merged object should contain both job metadata and evaluator metadata
   - Key fields include `job_id`, `title`, `company`, `url`, `location` if available, evaluator fields, and `recommendation_score`
+- Prompt batch files
+  - `reports/evaluation_prompts.md` is an index listing generated batches
+  - `reports/evaluation_prompts/batch_###.md` files are self-contained prompt payloads for manual evaluation
+  - Default prompt batching lives in `config/settings.yaml`
+  - Current defaults are `4` jobs per batch and roughly `12000` chars per batch
+  - Environment overrides:
+    - `EVALUATION_PROMPT_BATCH_SIZE`
+    - `EVALUATION_PROMPT_MAX_CHARS`
 
 ## Candidate Constraints
 
@@ -143,7 +157,9 @@
 - `reports/evaluation_queue.json`
   - Manual evaluation work queue
 - `reports/evaluation_prompts.md`
-  - Prompt batch for pending jobs
+  - Prompt batch index for pending jobs
+- `reports/evaluation_prompts/`
+  - Self-contained prompt batch files such as `batch_001.md`
 - `reports/evaluator_results.json`
   - Manually pasted evaluator outputs
 - `reports/evaluator_results_merged.json`
@@ -156,12 +172,16 @@
 - Use ChatGPT for system design and reasoning
 - Use Codex for modifying code in the repo
 - Manual evaluation step is currently used instead of live LLM API calls
-- Run the pipeline to refresh `reports/evaluation_queue.json`
+- Keep the manual evaluator reserved for judgment calls; obvious auto-rejects should remain visible in reports but never re-enter prompt generation
+- Run the pipeline to refresh `reports/state/evaluation_queue.json`
 - Set `COMPANY_FILTER=Aledade` to run only Aledade through the existing pipeline
-- Review `reports/evaluation_prompts.md` for `pending` jobs only
+- Review `reports/evaluation_prompts.md` for the list of `pending` job batches only
+- Open one file from `reports/evaluation_prompts/` and paste that single batch into the evaluator chat
 - Set `FORCE_EVALUATION_PROMPTS=1` to regenerate prompts for all currently eligible jobs
+- Edit `config/settings.yaml` to change the default max jobs per prompt batch or approximate prompt size budget
+- Set `EVALUATION_PROMPT_BATCH_SIZE` or `EVALUATION_PROMPT_MAX_CHARS` only when you want a one-off override
 - Use `python3 -m src.reporting.evaluation_queue` to print queue summary counts
-- Use `python3 -m src.reporting.evaluation_queue --generate` to rebuild the queue from existing report JSON files without running the full collection pipeline
+- Use `python3 -m src.reporting.evaluation_queue --generate` to rebuild the queue from existing report files without running the full collection pipeline
 - Use `./.venv/bin/python -m src.collectors.smoke_test --company Aledade` to validate only the configured Aledade Lever collector and print sample normalized records
 
 ## Next Planned Improvements

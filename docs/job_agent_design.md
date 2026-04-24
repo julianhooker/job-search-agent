@@ -99,8 +99,15 @@ The pipeline generates `reports/evaluation_queue.json` as a lightweight manual w
   - `pending`: eligible for manual LLM evaluation and not yet present in evaluator outputs
   - `evaluated`: present in `reports/evaluator_results.json` but not yet merged into the latest final report output
   - `merged`: already present in `reports/evaluator_results_merged.json`
-  - `skipped`: not sent for manual evaluation, typically because the job was rejected by the detail filter
+  - `skipped`: not sent for manual evaluation because it was confidently auto-rejected by prefilter or detail filter
+- Only jobs with status `keep`, `maybe`, or legacy `review` are considered manual-evaluation candidates
 - `reports/evaluation_prompts.md` is generated from `pending` jobs only by default
+- `reports/evaluation_prompts.md` serves as an index for generated batch files
+- Individual prompt files are written to `reports/evaluation_prompts/batch_###.md`
+- Default batching is configured in `config/settings.yaml`
+- Current defaults are `4` jobs per prompt with an approximate `12000` character budget
+- `EVALUATION_PROMPT_BATCH_SIZE` overrides max jobs per batch for one-off runs
+- `EVALUATION_PROMPT_MAX_CHARS` overrides the approximate character budget for one-off runs
 - Setting `FORCE_EVALUATION_PROMPTS=1` causes prompts to be regenerated for all currently eligible jobs
 - `python3 -m src.reporting.evaluation_queue` prints summary counts for the queue
 

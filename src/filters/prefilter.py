@@ -6,6 +6,10 @@ def contains_any(text, patterns):
     return any(pattern in text for pattern in patterns)
 
 
+def contains_all(text, patterns):
+    return all(pattern in text for pattern in patterns)
+
+
 US_STATE_ABBREVIATIONS = {
     "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga",
     "hi", "ia", "id", "il", "in", "ks", "ky", "la", "ma", "md",
@@ -24,6 +28,18 @@ def looks_like_us_city_state(text):
 
 
 REJECT_TITLE_PATTERNS = [
+    "actuarial",
+    "actuary",
+    "business performance",
+    "cybersecurity incident manager",
+    "field cto",
+    "incident manager",
+    "medical records retrieval",
+    "operational excellence",
+    "performance excellence",
+    "pyramid analytics",
+    "service desk",
+    "steering committee",
     "account executive",
     "business development",
     "bdr",
@@ -99,6 +115,11 @@ MAYBE_TITLE_PATTERNS = [
     "product manager",
 ]
 
+REJECT_TITLE_COMBINATIONS = [
+    ("performance", "operations"),
+    ("performance", "operational"),
+]
+
 def classify_title(title_text):
     text = normalize_text(title_text)
 
@@ -106,6 +127,9 @@ def classify_title(title_text):
         return "maybe", ["Missing title"]
 
     if contains_any(text, REJECT_TITLE_PATTERNS):
+        return "reject", ["Title appears outside target role family"]
+
+    if any(contains_all(text, patterns) for patterns in REJECT_TITLE_COMBINATIONS):
         return "reject", ["Title appears outside target role family"]
 
     if contains_any(text, KEEP_TITLE_PATTERNS):
@@ -139,6 +163,7 @@ def classify_location(location_text, workplace_type=""):
         "france",
         "poland",
         "singapore",
+        "bangalore",
         "india",
         "japan",
         "australia",

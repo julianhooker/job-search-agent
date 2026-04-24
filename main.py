@@ -6,8 +6,8 @@ from src.utils.config_loader import load_companies
 from src.reporting.csv_export import export_jobs_csv
 from src.reporting.json_export import export_jobs_json
 from src.reporting.paths import (
-    EVALUATION_BATCH_PROMPT,
     EVALUATION_PROMPTS,
+    EVALUATION_PROMPTS_DIR,
     EVALUATION_QUEUE_JSON,
     EVALUATOR_RESULTS,
     EVALUATOR_RESULTS_MERGED,
@@ -21,12 +21,11 @@ from src.reporting.paths import (
     JOBS_REVIEW_JSON,
 )
 from src.reporting.prompt_export import (
-    export_batch_evaluation_prompt,
-    export_batch_evaluation_prompts_by_company,
     export_evaluation_prompts,
 )
 from src.reporting.evaluation_queue import (
     build_evaluation_queue,
+    is_manual_evaluation_candidate,
     load_json_file as load_queue_input_json,
     pending_jobs_from_queue,
     print_queue_summary,
@@ -35,7 +34,6 @@ from src.reporting.evaluation_queue import (
 from src.reporting.final_report import run_final_report
 from src.filters.prefilter import prefilter_jobs
 from src.filters.detail_filter import detail_filter_jobs
-from src.evaluators.job_evaluator import build_evaluation_prompt, build_evaluation_prompt_preamble
 from src.reporting.daily_report import build_daily_report
 from src.utils.id_helpers import require_job_ids
 
@@ -104,7 +102,7 @@ def main():
     export_jobs_csv(detail_reject, JOBS_DETAIL_REJECT_CSV)
     export_jobs_json(detail_keep + detail_maybe + detail_reject, JOBS_DETAIL_REVIEW_JSON)
 
-    evaluator_jobs = detail_keep + detail_maybe
+    evaluator_jobs = [job for job in (detail_keep + detail_maybe) if is_manual_evaluation_candidate(job)]
     evaluator_jobs_by_id = {job["job_id"]: job for job in evaluator_jobs}
 
     # Final check before generating evaluation prompts
@@ -114,7 +112,7 @@ def main():
     existing_merged_results = load_queue_input_json(EVALUATOR_RESULTS_MERGED)
     evaluation_queue = build_evaluation_queue(
         candidate_jobs=evaluator_jobs,
-        skipped_jobs=detail_reject,
+        skipped_jobs=rejected_jobs + detail_reject,
         eval_results=existing_eval_results,
         merged_results=existing_merged_results,
     )
@@ -129,15 +127,9 @@ def main():
     )
     export_evaluation_prompts(
         prompt_jobs,
-        build_evaluation_prompt,
-        EVALUATION_PROMPTS,
-        shared_prompt=build_evaluation_prompt_preamble(),
+        prompt_dir=EVALUATION_PROMPTS_DIR,
+        index_filename=EVALUATION_PROMPTS,
     )
-    export_batch_evaluation_prompt(
-        prompt_jobs,
-        EVALUATION_BATCH_PROMPT,
-    )
-    export_batch_evaluation_prompts_by_company(prompt_jobs)
 
     # Run the evaluator results ingestion & final report generation
     try:

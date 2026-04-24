@@ -1,3 +1,4 @@
+import csv
 import json
 from pathlib import Path
 
@@ -5,8 +6,10 @@ from src.reporting.paths import (
     EVALUATOR_RESULTS,
     EVALUATOR_RESULTS_MERGED,
     FINAL_RECOMMENDATIONS,
+    JOBS_REJECTED_CSV,
     JOBS_DETAIL_REVIEW_JSON,
 )
+from src.reporting.evaluation_queue import build_evaluation_queue, is_manual_evaluation_candidate, summarize_queue
 
 RECOMMENDATION_VALUES = {"pursue", "practice", "pass"}
 LEVEL_VALUES = {"low", "medium", "high"}
@@ -32,6 +35,15 @@ def load_json_file(path):
 
     with p.open("r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_csv_file(path):
+    p = Path(path)
+    if not p.exists():
+        return []
+
+    with p.open("r", encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
 
 
 def clamp_score(score, minimum=0, maximum=100):
@@ -267,6 +279,7 @@ def run_final_report():
 
     # Paths
     review_path = Path(JOBS_DETAIL_REVIEW_JSON)
+    rejected_path = Path(JOBS_REJECTED_CSV)
     eval_path = Path(EVALUATOR_RESULTS)
     merged_path = Path(EVALUATOR_RESULTS_MERGED)
     md_path = Path(FINAL_RECOMMENDATIONS)
@@ -274,6 +287,10 @@ def run_final_report():
     print("Loading review jobs from", review_path)
     review_jobs = load_json_file(review_path)
     print(f"Loaded {len(review_jobs)} review jobs")
+
+    print("Loading prefilter rejected jobs from", rejected_path)
+    rejected_jobs = load_csv_file(rejected_path)
+    print(f"Loaded {len(rejected_jobs)} prefilter rejected jobs")
 
     print("Loading evaluator results from", eval_path)
     eval_results = load_json_file(eval_path)
@@ -308,6 +325,14 @@ def run_final_report():
 
     print(f"Merged {len(merged)} results; {len(unmatched)} unmatched evaluator result(s)")
 
+    queue_items = build_evaluation_queue(
+        candidate_jobs=[job for job in review_jobs if is_manual_evaluation_candidate(job)],
+        skipped_jobs=[job for job in review_jobs if not is_manual_evaluation_candidate(job)] + rejected_jobs,
+        eval_results=eval_results,
+        merged_results=merged,
+    )
+    queue_counts = summarize_queue(queue_items)
+
     # Build markdown report with scoring and sorting
     sections = {"pursue": [], "practice": [], "pass": []}
 
@@ -336,6 +361,15 @@ def run_final_report():
     def top_text(k):
         return str(top_scores[k]) if top_scores[k] is not None else "N/A"
 
+    lines.append("## Workflow Summary")
+    lines.append("")
+    lines.append(f"- Pending manual evaluation: {queue_counts.get('pending', 0)}")
+    lines.append(f"- Already evaluated: {queue_counts.get('evaluated', 0)}")
+    lines.append(f"- Auto-rejected / skipped: {queue_counts.get('skipped', 0)}")
+    lines.append(f"- Merged into final report: {queue_counts.get('merged', 0)}")
+    lines.append("")
+    lines.append("## Evaluated Recommendations")
+    lines.append("")
     lines.append(f"Total evaluated jobs: {total}")
     lines.append("")
     lines.append(f"- Pursue: {counts.get('pursue', 0)} (top score: {top_text('pursue')})")

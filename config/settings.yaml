@@ -1,0 +1,3 @@
+evaluation_prompts:
+  batch_size: 4
+  max_chars: 12000

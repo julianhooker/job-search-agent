@@ -1,4 +1,5 @@
 import json
+import re
 
 
 CANONICAL_EVALUATOR_RESULT_FIELDS = (
@@ -119,7 +120,10 @@ DECISION_RELEVANT_FIELDS = (
     "title",
     "company",
     "location",
+    "workplace_type",
     "url",
+    "prefilter_status",
+    "prefilter_reasons",
     "detail_status",
     "detail_reasons",
     "salary_text",
@@ -131,8 +135,132 @@ DECISION_RELEVANT_FIELDS = (
     "mentions_weekends",
     "mentions_on_call",
     "manager_scope",
-    "description_text",
+    "description_excerpt",
 )
+
+DESCRIPTION_EXCERPT_MAX_CHARS = 1200
+DESCRIPTION_SKIP_PATTERNS = [
+    "who we are",
+    "equal opportunity",
+    "eeo statement",
+    "affirmative action",
+    "all qualified applicants",
+    "privacy policy",
+    "reasonable accommodation",
+    "medical, dental",
+    "medical dental",
+    "paid time off",
+    "what does this mean for you",
+    "in addition to time off",
+    "company overview",
+    "about us",
+    "background check",
+    "drug test",
+    "veteran status",
+    "disability status",
+]
+DESCRIPTION_CUT_MARKERS = [
+    "who we are:",
+    "about us:",
+    "benefits:",
+    "our benefits",
+    "why join",
+    "flexible work schedules",
+]
+DESCRIPTION_PREFER_PATTERNS = [
+    "responsibilities",
+    "what you'll do",
+    "what you will do",
+    "requirements",
+    "qualifications",
+    "about the role",
+    "role overview",
+    "preferred qualifications",
+    "travel",
+    "remote",
+    "hybrid",
+    "architecture",
+    "platform",
+    "integration",
+    "security",
+    "identity",
+    "iam",
+    "manager",
+    "leadership",
+    "on-call",
+]
+
+
+def _normalize_whitespace(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def _description_paragraphs(text):
+    normalized = str(text or "").replace("\r", "\n")
+    paragraphs = []
+    for chunk in re.split(r"\n\s*\n+", normalized):
+        paragraph = _normalize_whitespace(chunk)
+        if paragraph:
+            paragraphs.append(paragraph)
+    return paragraphs
+
+
+def build_description_excerpt(description_text, max_chars=DESCRIPTION_EXCERPT_MAX_CHARS):
+    paragraphs = _description_paragraphs(description_text)
+    if not paragraphs:
+        return ""
+
+    selected = []
+    total_chars = 0
+
+    def add_paragraph(paragraph):
+        nonlocal total_chars
+        if paragraph in selected:
+            return
+        separator_chars = 2 if selected else 0
+        available = max_chars - total_chars - separator_chars
+        if available <= 0:
+            return
+        if len(paragraph) > available:
+            trimmed = paragraph[: max(0, available - 3)].rstrip()
+            if trimmed:
+                selected.append(f"{trimmed}...")
+                total_chars = max_chars
+            return
+        selected.append(paragraph)
+        total_chars += len(paragraph) + separator_chars
+
+    preferred = []
+    fallback = []
+    for paragraph in paragraphs:
+        working = paragraph
+        lower = working.lower()
+        for marker in DESCRIPTION_CUT_MARKERS:
+            marker_index = lower.find(marker)
+            if marker_index >= 0:
+                working = working[:marker_index].rstrip(" -:\n")
+                lower = working.lower()
+                break
+        if not working:
+            continue
+        if any(pattern in lower for pattern in DESCRIPTION_SKIP_PATTERNS):
+            continue
+        if len(working) < 40 and not any(pattern in lower for pattern in DESCRIPTION_PREFER_PATTERNS):
+            continue
+        if any(pattern in lower for pattern in DESCRIPTION_PREFER_PATTERNS):
+            preferred.append(working)
+        else:
+            fallback.append(working)
+
+    for paragraph in preferred + fallback:
+        add_paragraph(paragraph)
+        if total_chars >= max_chars:
+            break
+
+    if not selected:
+        return ""
+
+    return "\n\n".join(selected)
 
 
 def _compact_job_payload(job):
@@ -160,7 +288,9 @@ def build_job_payload(job):
             f"Missing job_id for job title={job.get('title')!r}, company={job.get('company')!r}"
         )
 
-    payload = _compact_job_payload(job)
+    compact_job = dict(job)
+    compact_job["description_excerpt"] = build_description_excerpt(job.get("description_text", ""))
+    payload = _compact_job_payload(compact_job)
     payload["job_id"] = job_id
     return payload
 

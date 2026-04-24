@@ -4,6 +4,7 @@ REPORTS_DIR = "reports"
 DAILY_JOB_REPORT = f"{REPORTS_DIR}/daily_job_report.md"
 EVALUATION_BATCH_PROMPT = f"{REPORTS_DIR}/evaluation_batch_prompt.md"
 EVALUATION_PROMPTS = f"{REPORTS_DIR}/evaluation_prompts.md"
+EVALUATION_PROMPTS_DIR = f"{REPORTS_DIR}/evaluation_prompts"
 EVALUATOR_RESULTS = f"{REPORTS_DIR}/evaluator_results.json"
 FINAL_RECOMMENDATIONS = f"{REPORTS_DIR}/final_recommendations.md"
 
